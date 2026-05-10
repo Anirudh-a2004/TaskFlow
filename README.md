@@ -14,7 +14,6 @@ This project was built as part of a full-stack assessment and later expanded wit
 
 📂 GitHub Repository: https://github.com/Anirudh-a2004/TaskFlow
 
-🎥 Demo Video:
 
 ---
 
@@ -259,6 +258,18 @@ Todo → In Progress → Review → Completed
 ---
 
 # Screenshots
+![alt text](<Screenshot 2026-05-11 000206.png>)
+![alt text](<Screenshot 2026-05-11 000221.png>)
+![alt text](<Screenshot 2026-05-11 000230.png>)
+![alt text](<Screenshot 2026-05-11 000240.png>) 
+![alt text](<Screenshot 2026-05-11 000230-1.png>)
+![alt text](<Screenshot 2026-05-11 000246.png>)
+![alt text](<Screenshot 2026-05-11 000256.png>)
+![alt text](<Screenshot 2026-05-11 000306.png>)
+
+
+
+
 
 ---
 
