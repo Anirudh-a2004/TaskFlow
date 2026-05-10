@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowUpRight, Calendar, CheckCircle2, Clock, FolderKanban, Sparkles, TrendingUp, TriangleAlert, Users } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import Skeleton from '../components/Skeleton.jsx';
+import Skeleton, { EmptyState, SkeletonStack } from '../components/Skeleton.jsx';
 import { api } from '../utils/api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 
@@ -44,17 +44,44 @@ export default function Dashboard() {
 
   if (!data) {
     return (
-      <div className="grid gap-6">
-        <Skeleton className="h-32 rounded-[2rem]" />
+      <div className="grid gap-6 sm:gap-8">
+        <div className="rounded-[2rem] border border-white/10 bg-gradient-to-br from-blue-600/10 via-slate-900/75 to-fuchsia-600/10 p-5 shadow-2xl backdrop-blur-2xl sm:p-7">
+          <div className="flex items-center gap-4">
+            <Skeleton className="h-14 w-14 rounded-3xl sm:h-16 sm:w-16" />
+            <div className="grid flex-1 gap-3">
+              <Skeleton className="h-5 w-56 max-w-full" />
+              <Skeleton className="h-3 w-72 max-w-full" />
+            </div>
+          </div>
+        </div>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-28 rounded-[2rem]" />
+            <div key={i} className="card p-5">
+              <div className="flex items-start justify-between gap-4">
+                <Skeleton className="h-12 w-12 rounded-3xl" />
+                <Skeleton className="h-4 w-12" />
+              </div>
+              <Skeleton className="mt-5 h-3 w-28" />
+              <Skeleton className="mt-3 h-8 w-16" />
+            </div>
           ))}
         </div>
-        <Skeleton className="h-96 rounded-[2rem]" />
+        <div className="grid gap-4 lg:grid-cols-3">
+          <Skeleton className="h-80 rounded-[2rem] lg:col-span-2" />
+          <Skeleton className="h-80 rounded-[2rem]" />
+        </div>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <SkeletonStack rows={4} className="card p-4" />
+          <SkeletonStack rows={4} className="card p-4" />
+        </div>
       </div>
     );
   }
+
+  const upcomingItems = data.calendar?.slice(0, 6) || [];
+  const recentItems = data.recentActivity?.slice(0, 5) || [];
+  const hasProductivity = (data.productivity || []).length > 0;
+  const hasStatusCounts = (data.statusCounts || []).some((item) => item.value > 0);
 
   return (
     <motion.div initial="hidden" animate="show" className="grid gap-8">
@@ -151,8 +178,9 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="h-64 sm:h-80 lg:h-96">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data.productivity} margin={{ top: 20, right: 10, left: 0, bottom: 0 }}>
+            {hasProductivity ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={data.productivity} margin={{ top: 20, right: 10, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="grad1" x1="0%" y1="0%" x2="0%" y2="100%">
                     <stop offset="0%" stopColor="#60a5fa" />
@@ -192,8 +220,11 @@ export default function Dashboard() {
                 />
                 <Bar dataKey="created" fill="url(#grad1)" radius={[8, 8, 0, 0]} />
                 <Bar dataKey="completed" fill="url(#grad2)" radius={[8, 8, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <EmptyState icon={FolderKanban} title="Create your first task to get started" description="Productivity analytics will appear once your team starts creating and completing work." />
+            )}
           </div>
         </motion.div>
 
@@ -207,8 +238,9 @@ export default function Dashboard() {
             <h3 className="mt-1 text-xl font-black text-white sm:mt-2 sm:text-2xl">Task status</h3>
           </div>
           <div className="h-64 sm:h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
+            {hasStatusCounts ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
                 <Pie
                   data={data.statusCounts}
                   dataKey="value"
@@ -232,8 +264,11 @@ export default function Dashboard() {
                   }}
                   labelStyle={{ color: '#fff' }}
                 />
-              </PieChart>
-            </ResponsiveContainer>
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <EmptyState icon={CheckCircle2} title="No task status data yet" description="Status distribution fills in as tasks move through the board." />
+            )}
           </div>
         </motion.div>
       </div>
@@ -253,7 +288,7 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="space-y-3">
-            {data.calendar.slice(0, 6).map((item, index) => (
+            {upcomingItems.length ? upcomingItems.map((item, index) => (
               <motion.div
                 key={item.id}
                 initial={{ opacity: 0, x: -20 }}
@@ -269,7 +304,9 @@ export default function Dashboard() {
                   {new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                 </span>
               </motion.div>
-            ))}
+            )) : (
+              <EmptyState icon={Calendar} title="You're all caught up" description="No upcoming tasks are scheduled. Add due dates to keep the week visible." />
+            )}
           </div>
         </motion.div>
 
@@ -290,7 +327,7 @@ export default function Dashboard() {
           </div>
           <div className="relative space-y-4 pl-6 sm:space-y-5 sm:pl-8">
             <div className="absolute left-3 top-0 h-full w-px bg-gradient-to-b from-cyan-400/50 via-cyan-400/25 to-transparent sm:left-5" />
-            {data.recentActivity.slice(0, 5).map((item, index) => (
+            {recentItems.length ? recentItems.map((item, index) => (
               <motion.div
                 key={item._id}
                 initial={{ opacity: 0, x: -20 }}
@@ -312,7 +349,9 @@ export default function Dashboard() {
                   </p>
                 </div>
               </motion.div>
-            ))}
+            )) : (
+              <EmptyState icon={TrendingUp} title="No recent activity yet" description="Team updates will appear here as projects, tasks, and comments change." />
+            )}
           </div>
         </motion.div>
       </div>

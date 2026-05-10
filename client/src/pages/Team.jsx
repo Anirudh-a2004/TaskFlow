@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useApp } from '../context/AppContext.jsx';
 import { api, qs } from '../utils/api.js';
-import Skeleton from '../components/Skeleton.jsx';
+import Skeleton, { EmptyState, SkeletonStack } from '../components/Skeleton.jsx';
 
 const cardVariants = {
   hidden: { opacity: 0, y: 18 },
@@ -85,9 +85,38 @@ export default function Team() {
       </motion.header>
 
       {loading ? (
-        <div className="grid gap-4">
-          <Skeleton className="h-28 rounded-[2rem]" />
-          <Skeleton className="h-96 rounded-[2rem]" />
+        <div className="grid gap-6">
+          <div className="grid gap-3 sm:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <div key={index} className="card p-5">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="grid flex-1 gap-3">
+                    <Skeleton className="h-3 w-24" />
+                    <Skeleton className="h-8 w-14" />
+                  </div>
+                  <Skeleton className="h-12 w-12 rounded-2xl" />
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className={`grid gap-6 ${isAdmin ? 'xl:grid-cols-[1fr_380px]' : ''}`}>
+            <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <div key={index} className="card p-5">
+                  <div className="flex items-start gap-4">
+                    <Skeleton className="h-14 w-14 rounded-3xl" />
+                    <div className="grid flex-1 gap-3">
+                      <Skeleton className="h-4 w-2/3" />
+                      <Skeleton className="h-3 w-full" />
+                      <Skeleton className="h-3 w-1/2" />
+                    </div>
+                  </div>
+                  <Skeleton className="mt-5 h-10 w-full rounded-2xl" />
+                </div>
+              ))}
+            </div>
+            {isAdmin && <SkeletonStack rows={4} className="card h-fit p-5" />}
+          </div>
         </div>
       ) : (
         <>
@@ -110,12 +139,13 @@ export default function Team() {
           <section className={`grid gap-6 ${isAdmin ? 'xl:grid-cols-[1fr_380px]' : ''}`}>
             <motion.div variants={cardVariants} className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
               {users.length === 0 ? (
-                <div className="empty-state col-span-full">
-                  <div className="mx-auto grid h-14 w-14 place-items-center rounded-3xl bg-white/10 text-cyan-300">
-                    <Users size={24} />
-                  </div>
-                  <p className="mt-4 text-lg font-black text-white">No team members found</p>
-                  <p className="mt-2 text-sm text-slate-400">Invite your first collaborator and start working together instantly.</p>
+                <div className="col-span-full">
+                  <EmptyState
+                    icon={Users}
+                    title="No team members found"
+                    description="Invite your first collaborator and start building a shared workspace for projects, tasks, and ownership."
+                    action={isAdmin && <button onClick={() => document.getElementById('invite-member')?.scrollIntoView({ behavior: 'smooth' })} className="btn-primary"><UserPlus size={18} />Invite member</button>}
+                  />
                 </div>
               ) : (
                 users.map((user, index) => (

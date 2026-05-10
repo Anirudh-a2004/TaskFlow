@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Bell, CheckCheck, MessageSquare, Sparkles, Timer } from 'lucide-react';
 import { api } from '../utils/api.js';
-import Skeleton from '../components/Skeleton.jsx';
+import Skeleton, { EmptyState, SkeletonStack } from '../components/Skeleton.jsx';
 
 const iconMap = {
   assignment: Sparkles,
@@ -32,9 +32,20 @@ export default function Notifications() {
 
   if (!items) {
     return (
-      <div className="grid gap-4">
-        <Skeleton className="h-28 rounded-[2rem]" />
-        <Skeleton className="h-96 rounded-[2rem]" />
+      <div className="grid gap-6 sm:gap-8">
+        <div className="rounded-[2rem] border border-white/10 bg-gradient-to-br from-cyan-500/10 via-slate-900/80 to-fuchsia-500/10 p-5 shadow-2xl backdrop-blur-2xl sm:p-7">
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="mt-4 h-8 w-56 max-w-full" />
+          <Skeleton className="mt-3 h-3 w-96 max-w-full" />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-center">
+          <div className="grid grid-cols-2 gap-3 sm:flex">
+            <Skeleton className="h-20 rounded-[2rem] sm:w-32" />
+            <Skeleton className="h-20 rounded-[2rem] sm:w-32" />
+          </div>
+          <Skeleton className="h-12 rounded-2xl sm:w-64" />
+        </div>
+        <SkeletonStack rows={5} className="premium-card p-4" />
       </div>
     );
   }
@@ -86,13 +97,11 @@ export default function Notifications() {
       </section>
 
       {visibleItems.length === 0 ? (
-        <div className="empty-state">
-          <div className="mx-auto grid h-14 w-14 place-items-center rounded-3xl bg-white/10 text-cyan-300">
-            <Bell size={24} />
-          </div>
-          <p className="mt-4 text-lg font-black text-white">Your inbox is clear</p>
-          <p className="mt-2 text-sm text-slate-400">No alerts match this view. Your team is on track.</p>
-        </div>
+        <EmptyState
+          icon={Bell}
+          title={filter === 'All' ? 'No notifications right now' : "You're all caught up"}
+          description="No alerts match this view. Your team is on track, and important updates will appear here."
+        />
       ) : (
         <section className="premium-card overflow-hidden p-3 sm:p-4">
           <div className="relative grid gap-3 sm:pl-7">

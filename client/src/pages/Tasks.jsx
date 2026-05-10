@@ -4,7 +4,7 @@ import { DragDropContext, Draggable, Droppable } from '@hello-pangea/dnd';
 import { Calendar, MessageSquare, Paperclip, Plus, AlertCircle, CheckCircle2, Zap, Clock, ChevronRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Badge from '../components/Badge.jsx';
-import Skeleton from '../components/Skeleton.jsx';
+import Skeleton, { EmptyState, SkeletonStack } from '../components/Skeleton.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useApp } from '../context/AppContext.jsx';
 import { api, qs } from '../utils/api.js';
@@ -87,8 +87,9 @@ export default function Tasks() {
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center sm:gap-4">
         <div>
-          <p className="text-xs font-black uppercase text-fuchsia-300 sm:text-sm">Execution board</p>
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-fuchsia-300 sm:text-sm">Execution board</p>
           <h1 className="mt-1 text-3xl font-black tracking-tight text-white sm:text-4xl">Kanban Board</h1>
+          <p className="mt-2 text-sm font-semibold leading-6 text-slate-400">Prioritize work, drag tasks across stages, and keep delivery moving.</p>
         </div>
         {isAdmin && (
           <motion.a
@@ -104,29 +105,64 @@ export default function Tasks() {
       </motion.div>
 
       {loading ? (
-        <div className="grid gap-4">
-          <Skeleton className="h-24 rounded-[2rem]" />
-          <Skeleton className="h-[520px] rounded-[2rem]" />
+        <div className="grid gap-6 xl:grid-cols-[1fr_380px]">
+          <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.035] p-4 backdrop-blur-2xl">
+            <div className="flex gap-4 overflow-hidden">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <div key={index} className="w-72 flex-shrink-0 rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-4 sm:w-80 lg:flex-1">
+                  <div className="flex items-center justify-between">
+                    <Skeleton className="h-5 w-32" />
+                    <Skeleton className="h-8 w-8 rounded-lg" />
+                  </div>
+                  <div className="mt-5 grid gap-3">
+                    <Skeleton className="h-28 rounded-2xl" />
+                    <Skeleton className="h-36 rounded-2xl" />
+                    <Skeleton className="h-24 rounded-2xl" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          {isAdmin && <SkeletonStack rows={6} className="card h-fit p-5" />}
         </div>
       ) : (
         <section className="grid gap-6 xl:grid-cols-[1fr_380px]">
+          {tasks.length === 0 && (
+            <div className="xl:col-span-2">
+              <EmptyState
+                icon={CheckCircle2}
+                title="Create your first task to get started"
+                description="Your board is ready. Add work, assign an owner, and move it through the workflow as progress happens."
+                action={isAdmin && <a href="#create-task" className="btn-primary"><Plus size={18} />Create task</a>}
+              />
+            </div>
+          )}
           <DragDropContext onDragEnd={onDragEnd}>
-            <motion.div className="overflow-x-auto pb-4" initial="hidden" animate="show" variants={{ show: { transition: { staggerChildren: 0.08 } } }}>
-              <div className="flex gap-4 sm:gap-6 lg:grid lg:grid-cols-4 lg:gap-6">
+            <motion.div
+              className="max-w-[calc(100vw-2rem)] overflow-x-auto overscroll-x-contain rounded-[2rem] pb-4 [scrollbar-color:rgba(103,232,249,.45)_rgba(15,23,42,.55)] [scrollbar-width:thin] sm:max-w-[calc(100vw-3rem)]"
+              initial="hidden"
+              animate="show"
+              variants={{ show: { transition: { staggerChildren: 0.08 } } }}
+            >
+              <div className="mb-3 flex items-center gap-2 px-1 text-xs font-bold uppercase tracking-[0.16em] text-slate-500 lg:hidden">
+                <ChevronRight size={14} className="text-cyan-300" />
+                Swipe sideways to view every workflow stage
+              </div>
+              <div className="flex snap-x snap-mandatory gap-4 sm:gap-6 lg:grid lg:grid-cols-4 lg:gap-6">
                 {columns.map((column) => {
                   const Icon = column.icon;
                   return (
                     <motion.div
                       key={column.id}
                       variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { duration: 0.4 } } }}
-                      className="flex-shrink-0 w-72 sm:w-80 lg:w-auto space-y-4"
+                      className="w-[82vw] max-w-sm flex-shrink-0 snap-start space-y-4 sm:w-80 lg:w-auto lg:max-w-none"
                     >
                     <Droppable droppableId={column.id}>
                       {(provided, snapshot) => (
                         <div
                           ref={provided.innerRef}
                           {...provided.droppableProps}
-                          className={`min-h-[580px] rounded-[2rem] border border-white/10 transition-all duration-300 ${
+                          className={`min-h-[540px] rounded-[2rem] border border-white/10 transition-all duration-300 sm:min-h-[580px] ${
                             snapshot.isDraggingOver
                               ? 'border-blue-500/50 bg-white/[0.08] shadow-2xl shadow-blue-500/20 backdrop-blur-2xl'
                               : 'bg-white/[0.035] shadow-2xl shadow-black/10 backdrop-blur-2xl'
@@ -159,11 +195,11 @@ export default function Tasks() {
                               <motion.div
                                 initial={{ opacity: 0, scale: 0.9 }}
                                 animate={{ opacity: 1, scale: 1 }}
-                                className="rounded-2xl border-2 border-dashed border-white/10 bg-white/[0.02] py-12 text-center"
+                                className="rounded-2xl border-2 border-dashed border-white/10 bg-white/[0.02] px-4 py-12 text-center"
                               >
                                 <AlertCircle size={32} className="mx-auto mb-2 text-slate-500" />
-                                <p className="text-sm font-semibold text-slate-500">No tasks yet</p>
-                                <p className="text-xs text-slate-600">Drag tasks here or create a new one</p>
+                                <p className="text-sm font-black text-slate-300">No tasks here</p>
+                                <p className="mt-1 text-xs font-semibold text-slate-600">Drag tasks into this stage when they are ready.</p>
                               </motion.div>
                             ) : (
                               grouped[column.id].map((task, index) => {
