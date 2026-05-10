@@ -10,11 +10,11 @@ This project was built as part of a full-stack assessment and later expanded wit
 
 # Live Demo
 
-🌐 Live Application: *(Add your Railway deployed link here)*
+🌐 Live Application: taskflow-production-9ebd.up.railway.app
 
-📂 GitHub Repository: *(Add your GitHub repo link here)*
+📂 GitHub Repository: https://github.com/Anirudh-a2004/TaskFlow
 
-🎥 Demo Video: *(Add your demo video link here)*
+🎥 Demo Video:
 
 ---
 
@@ -259,18 +259,6 @@ Todo → In Progress → Review → Completed
 ---
 
 # Screenshots
-
-*(Add screenshots here later)*
-
-Suggested screenshots:
-
-* Landing Page
-* Dashboard
-* Kanban Board
-* Projects Page
-* Calendar Planner
-* Admin Console
-* Mobile View
 
 ---
 
