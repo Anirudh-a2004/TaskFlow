@@ -1,8 +1,15 @@
 import { useState } from 'react';
-import { Download, Save, UserCircle } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { BellRing, Download, FileUp, Mail, MessageSquareText, Save, ShieldCheck, UserCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext.jsx';
 import { api } from '../utils/api.js';
+
+const featureCards = [
+  { title: 'Team chat', text: 'Project chat endpoints and Socket.IO events are ready for live collaboration.', icon: MessageSquareText, tone: 'text-cyan-300 bg-cyan-500/10' },
+  { title: 'Email notifications', text: 'SMTP variables enable password reset flows and reminder emails.', icon: BellRing, tone: 'text-fuchsia-300 bg-fuchsia-500/10' },
+  { title: 'File uploads', text: 'Task attachments and avatar upload routes use Multer and the uploads folder.', icon: FileUp, tone: 'text-emerald-300 bg-emerald-500/10' }
+];
 
 export default function Profile() {
   const { user } = useAuth();
@@ -47,25 +54,103 @@ startxref
   };
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
-      <form onSubmit={save} className="card p-6">
-        <div className="mb-6 flex items-center gap-3"><UserCircle className="text-blue-600" /><h1 className="text-2xl font-black">Profile management</h1></div>
-        <div className="grid gap-4">
-          <input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-          <input className="input" placeholder="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
-          <input className="input" placeholder="Department" value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} />
-          <button className="btn-primary"><Save size={18} />Save profile</button>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid gap-6 xl:grid-cols-[420px_1fr]">
+      <motion.aside
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-br from-blue-600/15 via-slate-900/85 to-fuchsia-600/15 p-5 shadow-2xl backdrop-blur-2xl sm:p-6"
+      >
+        <div className="flex items-center gap-4">
+          <div className="grid h-20 w-20 place-items-center rounded-[1.75rem] bg-gradient-to-br from-blue-600 via-indigo-500 to-fuchsia-500 text-3xl font-black text-white shadow-lg shadow-blue-500/25 ring-1 ring-white/20">
+            {user?.name?.[0] || 'U'}
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-cyan-300">Account</p>
+            <h1 className="mt-1 truncate text-2xl font-black text-white">{user?.name}</h1>
+            <p className="mt-1 truncate text-sm font-semibold text-slate-400">{user?.email}</p>
+          </div>
         </div>
-      </form>
-      <section className="card p-6">
-        <h2 className="text-xl font-black">Extra features</h2>
-        <div className="mt-5 grid gap-4 md:grid-cols-2">
-          <div className="rounded-2xl bg-slate-50 p-5 dark:bg-slate-950"><h3 className="font-black">Team chat</h3><p className="mt-2 text-sm leading-6 text-slate-500">Backend includes project chat endpoints and Socket.IO events for live messages.</p></div>
-          <div className="rounded-2xl bg-slate-50 p-5 dark:bg-slate-950"><h3 className="font-black">Email notifications</h3><p className="mt-2 text-sm leading-6 text-slate-500">Configure SMTP environment variables to enable password reset and reminder emails.</p></div>
-          <div className="rounded-2xl bg-slate-50 p-5 dark:bg-slate-950"><h3 className="font-black">File uploads</h3><p className="mt-2 text-sm leading-6 text-slate-500">Task attachment and avatar upload routes use Multer and the uploads folder.</p></div>
-          <button onClick={exportPdf} className="btn-secondary justify-start"><Download size={18} />Export project report PDF</button>
+
+        <div className="mt-6 grid gap-3">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-4">
+            <p className="flex items-center gap-2 text-sm font-bold text-slate-300">
+              <ShieldCheck size={16} className="text-emerald-300" />
+              {user?.role || 'Member'} access
+            </p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-4">
+            <p className="flex items-center gap-2 text-sm font-bold text-slate-300">
+              <Mail size={16} className="text-cyan-300" />
+              {form.department || 'Product'} department
+            </p>
+          </div>
         </div>
-      </section>
-    </div>
+      </motion.aside>
+
+      <div className="grid gap-6">
+        <motion.form
+          onSubmit={save}
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.06 }}
+          className="card p-5 sm:p-6"
+        >
+          <div className="mb-5 flex items-center gap-3">
+            <div className="grid h-11 w-11 place-items-center rounded-2xl bg-blue-500/15 text-blue-300">
+              <UserCircle size={22} />
+            </div>
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Settings</p>
+              <h2 className="text-xl font-black text-white">Profile management</h2>
+            </div>
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            <input className="input" aria-label="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            <input className="input" placeholder="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+            <input className="input" placeholder="Department" value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} />
+          </div>
+          <button className="btn-primary mt-5 w-full sm:w-auto">
+            <Save size={18} />
+            Save profile
+          </button>
+        </motion.form>
+
+        <motion.section
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.12 }}
+          className="grid gap-4 md:grid-cols-3"
+        >
+          {featureCards.map(({ title, text, icon: Icon, tone }) => (
+            <article key={title} className="card group p-5 transition duration-300 hover:-translate-y-1 hover:bg-white/[0.085]">
+              <div className={`mb-4 grid h-11 w-11 place-items-center rounded-2xl ${tone}`}>
+                <Icon size={20} />
+              </div>
+              <h3 className="font-black text-white">{title}</h3>
+              <p className="mt-2 text-sm font-semibold leading-6 text-slate-400">{text}</p>
+            </article>
+          ))}
+        </motion.section>
+
+        <motion.section
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.18 }}
+          className="premium-card flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6"
+        >
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-cyan-300">Workspace export</p>
+            <h2 className="mt-2 text-xl font-black text-white">Project report PDF</h2>
+            <p className="mt-2 max-w-xl text-sm font-semibold leading-6 text-slate-400">
+              Export a lightweight summary covering progress, task status, activity, notifications, and collaboration notes.
+            </p>
+          </div>
+          <button onClick={exportPdf} className="btn-secondary w-full sm:w-auto">
+            <Download size={18} />
+            Export PDF
+          </button>
+        </motion.section>
+      </div>
+    </motion.div>
   );
 }
