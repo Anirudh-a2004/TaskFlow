@@ -84,12 +84,48 @@ async function mockApi(path, options = {}) {
   const body = options.body && !(options.body instanceof FormData) ? JSON.parse(options.body) : {};
 
   if (path === '/auth/signup' && method === 'POST') {
-    const user = { _id: `u_${Date.now()}`, name: body.name, email: body.email, password: body.password, role: db.users.length ? 'Member' : 'Admin', title: 'Team Member', department: 'Product' };
+    const isAdminInvite = body.inviteCode && body.inviteCode === (import.meta.env.VITE_ADMIN_INVITE_CODE || 'ADMIN123');
+    const user = {
+      _id: `u_${Date.now()}`,
+      name: body.name,
+      email: body.email,
+      password: body.password,
+      role: isAdminInvite ? 'Admin' : (db.users.length ? 'Member' : 'Admin'),
+      title: body.title || 'Team Member',
+      department: body.department || 'Product'
+    };
     db.users.push(user);
     saveDemo(db);
     localStorage.setItem('ttm_demo_user_id', user._id);
     const { password, ...safeUser } = user;
     return { token: `demo-token-${user._id}`, user: safeUser };
+  }
+
+  if (path === '/auth/invite' && method === 'POST') {
+    const existing = db.users.find((item) => item.email?.toLowerCase() === body.email?.toLowerCase());
+    if (existing) throw new Error('Email is already registered.');
+    const user = {
+      _id: `u_${Date.now()}`,
+      name: body.name,
+      email: body.email,
+      password: 'password123',
+      role: 'Member',
+      status: 'Active',
+      title: body.title || 'Team Member',
+      department: body.department || 'Product'
+    };
+    db.users.push(user);
+    db.notifications.unshift({
+      _id: `n_${Date.now()}`,
+      title: 'New team member invited',
+      message: `${body.name} has been added to the workspace.`,
+      type: 'system',
+      read: false,
+      createdAt: new Date().toISOString()
+    });
+    saveDemo(db);
+    const { password, ...safeUser } = user;
+    return { user: safeUser, message: 'Member invited successfully.' };
   }
 
   if (path === '/auth/login' && method === 'POST') {

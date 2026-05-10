@@ -58,7 +58,9 @@ async function recalcProjectProgress(projectId) {
 
 export const listProjects = asyncHandler(async (req, res) => {
   const { page, limit, skip } = pagination(req);
-  const access = req.user.role === 'Admin' ? {} : { members: req.user._id };
+  const access = req.user.role === 'Admin'
+    ? {}
+    : { $or: [{ members: req.user._id }, { manager: req.user._id }] };
   const filter = { ...access, ...searchFilter(['name', 'description', 'priority'], req.query.search) };
   if (req.query.priority) filter.priority = req.query.priority;
   const [items, total] = await Promise.all([
@@ -71,7 +73,9 @@ export const listProjects = asyncHandler(async (req, res) => {
 export const getProject = asyncHandler(async (req, res) => {
   const project = await Project.findById(req.params.id).populate('owner manager members', 'name email avatar role');
   if (!project) throw notFound('Project');
-  if (req.user.role !== 'Admin' && !project.members.some((member) => member._id.equals(req.user._id))) {
+  const isMember = project.members.some((member) => member._id.equals(req.user._id));
+  const isLead = project.manager?._id?.equals(req.user._id);
+  if (req.user.role !== 'Admin' && !isMember && !isLead) {
     throw new ApiError(403, 'Project access denied.');
   }
   res.json({ project });
@@ -84,7 +88,7 @@ export const createProject = asyncHandler(async (req, res) => {
   const members = Array.from(new Set(seed));
   const project = await Project.create({ ...req.body, owner: req.user._id, members, status: 'Active' });
   await Activity.create({ actor: req.user._id, project: project._id, action: 'project.created', detail: project.name });
-  res.status(201).json({ project: await project.populate('owner members', 'name email avatar role') });
+  res.status(201).json({ project: await project.populate('owner manager members', 'name email avatar role') });
 });
 
 export const updateProject = asyncHandler(async (req, res) => {
@@ -112,7 +116,7 @@ export const updateProject = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'No updatable fields provided.');
   }
 
-  if (patch.members) {
+  if (patch.members !== undefined) {
     const nextMembers = Array.from(new Set([...(patch.members || []).map((id) => id?.toString()).filter(Boolean)]));
     if (!nextMembers.length) {
       throw new ApiError(400, 'Members list cannot be empty.');
@@ -129,9 +133,52 @@ export const updateProject = asyncHandler(async (req, res) => {
     }
   }
 
+  // Keep relationship integrity: owner and current lead should always stay in members.
+  const normalizedMembers = new Set((project.members || []).map((id) => id?.toString()).filter(Boolean));
+  if (project.owner) normalizedMembers.add(project.owner.toString());
+  if (project.manager) normalizedMembers.add(project.manager.toString());
+  project.members = Array.from(normalizedMembers);
+
   await project.save();
   const populated = await project.populate('owner manager members', 'name email avatar role');
   await Activity.create({ actor: req.user._id, project: project._id, action: 'project.updated', detail: project.name });
+  res.json({ project: populated });
+});
+
+export const updateProjectMembers = asyncHandler(async (req, res) => {
+  const project = await Project.findById(req.params.id);
+  if (!project) throw notFound('Project');
+
+  const isAdmin = req.user.role === 'Admin';
+  const isLead = project.manager && project.manager.equals(req.user._id);
+  if (!isAdmin && !isLead) {
+    throw new ApiError(403, 'Only admins or the assigned project lead can manage project members.');
+  }
+
+  const incoming = Array.isArray(req.body?.members) ? req.body.members : null;
+  if (!incoming) {
+    throw new ApiError(400, 'Members must be provided as an array of user IDs.');
+  }
+
+  const nextMembers = Array.from(new Set(incoming.map((id) => id?.toString()).filter(Boolean)));
+  if (!nextMembers.length) {
+    throw new ApiError(400, 'Members list cannot be empty.');
+  }
+
+  // Enforce relationship integrity: owner + lead always remain members.
+  nextMembers.push(project.owner.toString());
+  if (project.manager) nextMembers.push(project.manager.toString());
+  project.members = Array.from(new Set(nextMembers));
+
+  await project.save();
+  const populated = await project.populate('owner manager members', 'name email avatar role');
+  await Activity.create({
+    actor: req.user._id,
+    project: project._id,
+    action: 'project.members.updated',
+    detail: project.name
+  });
+
   res.json({ project: populated });
 });
 

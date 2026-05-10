@@ -80,6 +80,44 @@ export const me = asyncHandler(async (req, res) => {
   res.json({ user: req.user });
 });
 
+export const inviteMember = asyncHandler(async (req, res) => {
+  const { name, email, title, department } = req.body;
+  if (!name?.trim() || !email?.trim()) {
+    throw new ApiError(400, 'Name and email are required.');
+  }
+
+  const normalizedEmail = email.toLowerCase().trim();
+  const exists = await User.findOne({ email: normalizedEmail });
+  if (exists) throw new ApiError(409, 'Email is already registered.');
+
+  const generatedPassword = crypto.randomBytes(6).toString('base64url');
+  const member = await User.create({
+    name: name.trim(),
+    email: normalizedEmail,
+    password: generatedPassword,
+    role: 'Member',
+    title: title?.trim() || 'Team Member',
+    department: department?.trim() || 'Product',
+    status: 'Active'
+  });
+
+  const safeUser = await User.findById(member._id).select(publicUser);
+
+  // Best-effort email; invitation should still succeed even if mail is unavailable.
+  try {
+    await sendEmail({
+      to: normalizedEmail,
+      subject: 'You have been invited to TaskFlow',
+      text: `Hello ${name.trim()}, your TaskFlow account has been created.\nEmail: ${normalizedEmail}\nTemporary password: ${generatedPassword}\nPlease log in and change your password.`
+    });
+  } catch (_) {}
+
+  res.status(201).json({
+    user: safeUser,
+    message: 'Member invited successfully.'
+  });
+});
+
 export const forgotPassword = asyncHandler(async (req, res) => {
   const user = await User.findOne({ email: req.body.email });
   if (user) {

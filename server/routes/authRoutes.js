@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { body } from 'express-validator';
-import { forgotPassword, login, me, resetPassword, signup } from '../controllers/authController.js';
-import { protect } from '../middleware/authMiddleware.js';
+import { forgotPassword, inviteMember, login, me, resetPassword, signup } from '../controllers/authController.js';
+import { authorize, protect } from '../middleware/authMiddleware.js';
 import { validate } from '../middleware/validate.js';
 
 const router = Router();
@@ -27,6 +27,11 @@ router.post('/reset-password', [
   body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters.'),
   validate
 ], resetPassword);
+router.post('/invite', protect, authorize('Admin'), [
+  body('name').trim().notEmpty().withMessage('Name is required.'),
+  body('email').isEmail().withMessage('Valid email is required.'),
+  validate
+], inviteMember);
 router.get('/me', protect, me);
 
 export default router;

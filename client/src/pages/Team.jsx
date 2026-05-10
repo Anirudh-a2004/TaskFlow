@@ -22,6 +22,7 @@ export default function Team() {
   const [leadIds, setLeadIds] = useState(() => new Set());
   const [loading, setLoading] = useState(true);
   const [showInviteForm, setShowInviteForm] = useState(false);
+  const [inviting, setInviting] = useState(false);
   const [invite, setInvite] = useState({ name: '', email: '', title: 'Team Member', department: 'Product' });
 
   const openInvite = () => {
@@ -52,7 +53,7 @@ export default function Team() {
 
   useEffect(() => {
     load();
-  }, [search]);
+  }, [search, isAdmin]);
 
   useEffect(() => {
     if (location.hash !== '#invite-member') return;
@@ -62,11 +63,19 @@ export default function Team() {
 
   const inviteMember = async (event) => {
     event.preventDefault();
-    await api('/auth/signup', { method: 'POST', body: JSON.stringify(invite) });
-    toast.success('Invitation sent. Member created.');
-    setInvite({ name: '', email: '', title: 'Team Member', department: 'Product' });
-    setShowInviteForm(false);
-    load();
+    if (inviting) return;
+    setInviting(true);
+    try {
+      await api('/auth/invite', { method: 'POST', body: JSON.stringify(invite) });
+      toast.success('Invitation sent. Member created.');
+      setInvite({ name: '', email: '', title: 'Team Member', department: 'Product' });
+      setShowInviteForm(false);
+      load();
+    } catch (error) {
+      toast.error(error.message || 'Unable to invite member.', { className: 'tf-toast' });
+    } finally {
+      setInviting(false);
+    }
   };
 
   const role = async (id, nextRole) => {
@@ -240,7 +249,7 @@ export default function Team() {
       )}
 
       <Modal
-        open={isAdmin && showInviteForm}
+        open={showInviteForm}
         onClose={() => setShowInviteForm(false)}
         title="Invite team member"
         description="Create a collaborator profile and send credentials via email."
@@ -257,9 +266,9 @@ export default function Team() {
             <button type="button" className="btn-secondary" onClick={() => setShowInviteForm(false)}>
               Cancel
             </button>
-            <button className="btn-primary">
+            <button className="btn-primary" disabled={inviting}>
               <UserPlus size={18} />
-              Create member
+              {inviting ? 'Creating…' : 'Create member'}
             </button>
           </div>
         </form>

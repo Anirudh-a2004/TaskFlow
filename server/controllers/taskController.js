@@ -3,6 +3,7 @@ import Comment from '../models/Comment.js';
 import Notification from '../models/Notification.js';
 import Project from '../models/Project.js';
 import Task from '../models/Task.js';
+import User from '../models/User.js';
 import { ApiError, notFound } from '../utils/apiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { pagination, searchFilter } from '../utils/query.js';
@@ -11,15 +12,27 @@ import { recalcProjectProgress } from './projectController.js';
 async function ensureTaskAccess(task, user) {
   const project = await Project.findById(task.project);
   if (!project) throw notFound('Project');
-  if (user.role !== 'Admin' && !project.members.some((id) => id.equals(user._id))) {
+  const isMember = project.members.some((id) => id.equals(user._id));
+  const isLead = project.manager && project.manager.equals(user._id);
+  if (user.role !== 'Admin' && !isMember && !isLead) {
     throw new ApiError(403, 'Task access denied.');
   }
   return project;
 }
 
+async function canAssignToProject(project, assigneeId) {
+  if (!assigneeId) return true;
+  if (project.members.some((id) => id.toString() === assigneeId)) return true;
+  if (project.manager && project.manager.toString() === assigneeId) return true;
+  const person = await User.findById(assigneeId).select('role');
+  return person?.role === 'Admin';
+}
+
 export const listTasks = asyncHandler(async (req, res) => {
   const { page, limit, skip } = pagination(req);
-  const projectAccess = req.user.role === 'Admin' ? {} : { members: req.user._id };
+  const projectAccess = req.user.role === 'Admin'
+    ? {}
+    : { $or: [{ members: req.user._id }, { manager: req.user._id }] };
   const projects = await Project.find(projectAccess).select('_id');
   const filter = {
     project: { $in: projects.map((project) => project._id) },
@@ -32,7 +45,15 @@ export const listTasks = asyncHandler(async (req, res) => {
 
   const [items, total] = await Promise.all([
     Task.find(filter)
-      .populate('project', 'name color manager')
+      .populate({
+        path: 'project',
+        select: 'name color manager members owner progress status archived deadline priority completedAt',
+        populate: [
+          { path: 'manager', select: 'name email avatar role' },
+          { path: 'members', select: 'name email avatar role' },
+          { path: 'owner', select: 'name email avatar role' }
+        ]
+      })
       .populate('assignee createdBy', 'name email avatar')
       .sort({ order: 1, dueDate: 1, createdAt: -1 })
       .skip(skip)
@@ -49,8 +70,8 @@ export const createTask = asyncHandler(async (req, res) => {
   if (req.user.role !== 'Admin' && !isLead) {
     throw new ApiError(403, 'You do not have permission to manage tasks for this project.');
   }
-  if (req.body.assignee && !project.members.some((id) => id.toString() === req.body.assignee)) {
-    throw new ApiError(400, 'Assignee must be a project member.');
+  if (!(await canAssignToProject(project, req.body.assignee))) {
+    throw new ApiError(400, 'Assignee must be a project member, lead, or admin.');
   }
 
   const task = await Task.create({ ...req.body, createdBy: req.user._id });
@@ -67,7 +88,15 @@ export const createTask = asyncHandler(async (req, res) => {
     req.io?.to(task.assignee.toString()).emit('notification', notification);
   }
   res.status(201).json({ task: await task.populate([
-    { path: 'project', select: 'name color progress status archived deadline priority completedAt' },
+    {
+      path: 'project',
+      select: 'name color manager members owner progress status archived deadline priority completedAt',
+      populate: [
+        { path: 'manager', select: 'name email avatar role' },
+        { path: 'members', select: 'name email avatar role' },
+        { path: 'owner', select: 'name email avatar role' }
+      ]
+    },
     { path: 'assignee', select: 'name email avatar' },
     { path: 'createdBy', select: 'name email avatar' }
   ]) });
@@ -76,16 +105,28 @@ export const createTask = asyncHandler(async (req, res) => {
 export const updateTask = asyncHandler(async (req, res) => {
   const task = await Task.findById(req.params.id);
   if (!task) throw notFound('Task');
-  await ensureTaskAccess(task, req.user);
-  if (req.user.role !== 'Admin' && (!task.assignee || !task.assignee.equals(req.user._id))) {
+  const project = await ensureTaskAccess(task, req.user);
+  const isLead = project.manager && project.manager.equals(req.user._id);
+  if (req.user.role !== 'Admin' && !isLead && (!task.assignee || !task.assignee.equals(req.user._id))) {
     throw new ApiError(403, 'Members can edit only tasks assigned to them.');
+  }
+  if (req.body.assignee !== undefined && !(await canAssignToProject(project, req.body.assignee || undefined))) {
+    throw new ApiError(400, 'Assignee must be a project member, lead, or admin.');
   }
   Object.assign(task, req.body);
   await task.save();
   await recalcProjectProgress(task.project);
   await Activity.create({ actor: req.user._id, project: task.project, task: task._id, action: 'task.updated', detail: task.title });
   res.json({ task: await task.populate([
-    { path: 'project', select: 'name color progress status archived deadline priority completedAt' },
+    {
+      path: 'project',
+      select: 'name color manager members owner progress status archived deadline priority completedAt',
+      populate: [
+        { path: 'manager', select: 'name email avatar role' },
+        { path: 'members', select: 'name email avatar role' },
+        { path: 'owner', select: 'name email avatar role' }
+      ]
+    },
     { path: 'assignee', select: 'name email avatar' },
     { path: 'createdBy', select: 'name email avatar' }
   ]) });

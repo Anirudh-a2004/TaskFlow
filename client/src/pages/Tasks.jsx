@@ -42,6 +42,8 @@ export default function Tasks() {
   const [form, setForm] = useState({ title: '', description: '', project: '', assignee: '', priority: 'Medium', dueDate: '', subtasks: [] });
   const [activeTask, setActiveTask] = useState(null);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [projectDetailsById, setProjectDetailsById] = useState({});
+  const [loadingProjectMembers, setLoadingProjectMembers] = useState(false);
 
   const leadProjects = useMemo(
     () => projects.filter((project) => (project.manager?._id || project.manager) === user?._id),
@@ -110,16 +112,87 @@ export default function Tasks() {
     [projects, form.project]
   );
 
-  const assigneeOptions = useMemo(() => {
-    if (!selectedProject?.members?.length) return users;
-    const allowed = new Set(
-      selectedProject.members
-        .map((member) => member?._id || member)
-        .filter(Boolean)
-        .map((value) => value.toString())
-    );
-    return users.filter((user) => allowed.has(user._id));
-  }, [selectedProject, users]);
+  useEffect(() => {
+    if (!form.project) return;
+    let cancelled = false;
+    setLoadingProjectMembers(true);
+    api(`/projects/${form.project}`)
+      .then((data) => {
+        if (cancelled) return;
+        const project = data.project || data;
+        setProjectDetailsById((current) => ({ ...current, [form.project]: project }));
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setLoadingProjectMembers(false);
+      });
+    return () => {
+      cancelled = true;
+      setLoadingProjectMembers(false);
+    };
+  }, [form.project]);
+
+  useEffect(() => {
+    const activeProjectId = (activeTask?.project?._id || activeTask?.project || '').toString();
+    if (!activeProjectId || projectDetailsById[activeProjectId]) return;
+    let cancelled = false;
+    api(`/projects/${activeProjectId}`)
+      .then((data) => {
+        if (cancelled) return;
+        const project = data.project || data;
+        setProjectDetailsById((current) => ({ ...current, [activeProjectId]: project }));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTask, projectDetailsById]);
+
+  useEffect(() => {
+    if (!form.project) {
+      setLoadingProjectMembers(false);
+      return;
+    }
+    if (projectDetailsById[form.project]) {
+      setLoadingProjectMembers(false);
+    }
+  }, [form.project, projectDetailsById]);
+
+  const usersById = useMemo(
+    () => new Map(users.map((person) => [person._id?.toString(), person])),
+    [users]
+  );
+
+  const projectsById = useMemo(
+    () => new Map(projects.map((project) => [project._id?.toString(), project])),
+    [projects]
+  );
+
+  const getAssigneeOptionsForProject = (project) => {
+    if (!project || !project.members) return [];
+
+    // Map all project members with appropriate role labels
+    const options = project.members.map((member) => {
+      const isManager = project.manager && (member._id.toString() === (project.manager._id || project.manager).toString());
+      const roleLabel = member.role === 'Admin' ? 'Admin' : isManager ? 'Project Lead' : 'Member';
+      return { ...member, roleLabel };
+    });
+
+    // Add any Admins not already in the project members
+    const optionIds = new Set(options.map((o) => o._id));
+    const additionalAdmins = users
+      .filter((user) => user.role === 'Admin' && !optionIds.has(user._id))
+      .map((user) => ({ ...user, roleLabel: 'Admin' }));
+
+    return [...options, ...additionalAdmins];
+  };
+
+  const effectiveSelectedProject = projectDetailsById[form.project] || null;
+
+  const assigneeOptions = useMemo(
+    () => getAssigneeOptionsForProject(effectiveSelectedProject),
+    [effectiveSelectedProject, users, usersById]
+  );
 
   const grouped = useMemo(() => Object.fromEntries(columns.map((col) => [col.id, tasks.filter((task) => task.status === col.id)])), [tasks]);
 
@@ -198,6 +271,22 @@ export default function Tasks() {
       load();
     } finally {
       setUpdatingStatus(false);
+    }
+  };
+
+  const updateAssignee = async (task, assignee) => {
+    if (!task?._id) return;
+    try {
+      const response = await api(`/tasks/${task._id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ assignee: assignee || undefined })
+      });
+      const saved = response.task || response;
+      setTasks((current) => current.map((item) => (item._id === task._id ? { ...item, ...saved } : item)));
+      setActiveTask((current) => (current?._id === task._id ? { ...current, ...saved } : current));
+      toast.success('Assignee updated.', { className: 'tf-toast' });
+    } catch (error) {
+      toast.error(error.message || 'Unable to update assignee.', { className: 'tf-toast' });
     }
   };
 
@@ -508,6 +597,26 @@ export default function Tasks() {
                   </span>
                 )}
               </div>
+              {(isAdmin || canCompleteTask(activeTask)) && (
+                <div className="mt-4 grid gap-2">
+                  <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Assignee</p>
+                  <select
+                    className="input"
+                    value={activeTask.assignee?._id || ''}
+                    onChange={(e) => updateAssignee(activeTask, e.target.value)}
+                  >
+                    <option value="">Unassigned</option>
+                    {getAssigneeOptionsForProject(
+                      projectDetailsById[(activeTask.project?._id || '').toString()] ||
+                      projectsById.get((activeTask.project?._id || '').toString())
+                    ).map((member) => (
+                      <option key={member._id} value={member._id}>
+                        {member.name} ({member.roleLabel || member.role || 'Member'})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               {!canEditTask(activeTask) && !isAdmin && (
                 <p className="mt-3 text-xs font-semibold text-slate-500">You can update status once this task is assigned to you.</p>
               )}
@@ -558,12 +667,12 @@ export default function Tasks() {
             className="input"
             value={form.assignee}
             onChange={(e) => setForm({ ...form, assignee: e.target.value })}
-            disabled={!form.project}
+            disabled={!form.project || loadingProjectMembers}
           >
-            <option value="">Unassigned</option>
+            <option value="">{loadingProjectMembers ? 'Loading members…' : 'Unassigned'}</option>
             {assigneeOptions.map((user) => (
               <option key={user._id} value={user._id}>
-                {user.name}
+                {user.name} ({user.roleLabel || user.role || 'Member'})
               </option>
             ))}
           </motion.select>

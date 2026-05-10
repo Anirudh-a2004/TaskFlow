@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { BadgeCheck, Calendar, CheckCircle2, Crown, FolderKanban, Plus, Timer, Trash2, Users } from 'lucide-react';
+import { BadgeCheck, Calendar, CheckCircle2, Crown, FolderKanban, Plus, Timer, Trash2, UserPlus, Users, UsersRound } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useApp } from '../context/AppContext.jsx';
@@ -8,7 +8,7 @@ import { api, qs } from '../utils/api.js';
 import Skeleton, { EmptyState, SkeletonStack } from '../components/Skeleton.jsx';
 import Badge from '../components/Badge.jsx';
 import Modal from '../components/Modal.jsx';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 const statusLabel = (project) => {
   if (project.archived) return 'Archived';
@@ -23,11 +23,12 @@ export default function Projects() {
   const { search } = useApp();
   const { user } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [form, setForm] = useState({ name: '', description: '', priority: 'Medium', deadline: '', manager: '' });
+  const [form, setForm] = useState({ name: '', description: '', priority: 'Medium', deadline: '', manager: '', members: [] });
   const [activeProjectId, setActiveProjectId] = useState(null);
   const [projectDetail, setProjectDetail] = useState(null);
   const [projectTasks, setProjectTasks] = useState([]);
@@ -37,6 +38,7 @@ export default function Projects() {
   const [showApproved, setShowApproved] = useState(false);
   const [memberDraft, setMemberDraft] = useState([]);
   const [savingMembers, setSavingMembers] = useState(false);
+  const [showMemberManager, setShowMemberManager] = useState(false);
 
   const openCreate = () => {
     if (!isAdmin) return toast.error('Only admins can create projects.', { className: 'tf-toast' });
@@ -72,7 +74,7 @@ export default function Projects() {
     const manager = form.manager || undefined;
     await api('/projects', { method: 'POST', body: JSON.stringify({ ...form, manager }) });
     toast.success('Project created.');
-    setForm({ name: '', description: '', priority: 'Medium', deadline: '', manager: '' });
+    setForm({ name: '', description: '', priority: 'Medium', deadline: '', manager: '', members: [] });
     setShowCreateForm(false);
     load();
   };
@@ -137,19 +139,30 @@ export default function Projects() {
   }, [projectDetail, isAdmin, user?._id]);
 
   const saveMembers = async () => {
-    if (!projectDetail || savingMembers) return;
+    if (!projectDetail || savingMembers) return false;
     setSavingMembers(true);
     try {
-      const res = await api(`/projects/${projectDetail._id}`, { method: 'PATCH', body: JSON.stringify({ members: memberDraft }) });
+      const res = await api(`/projects/${projectDetail._id}/members`, { method: 'PATCH', body: JSON.stringify({ members: memberDraft }) });
       const next = res.project || res;
       setProjectDetail(next);
       toast.success('Project members updated.', { className: 'tf-toast' });
       load();
+      return true;
     } catch (error) {
       toast.error(error.message || 'Unable to update members.', { className: 'tf-toast' });
+      return false;
     } finally {
       setSavingMembers(false);
     }
+  };
+
+  const openMemberManager = () => {
+    if (!canManageMembers) {
+      toast.error('Only Admins or the assigned Project Lead can manage project members.', { className: 'tf-toast' });
+      return;
+    }
+    setMemberDraft((projectDetail?.members || []).map((m) => m?._id || m));
+    setShowMemberManager(true);
   };
 
   useEffect(() => {
@@ -359,7 +372,7 @@ export default function Projects() {
           <select
             className="input"
             value={form.manager}
-            onChange={(e) => setForm({ ...form, manager: e.target.value })}
+            onChange={(e) => setForm({ ...form, manager: e.target.value, members: form.members.filter(id => id !== e.target.value) })}
             required
           >
             <option value="">Select Project Lead</option>
@@ -369,6 +382,33 @@ export default function Projects() {
               </option>
             ))}
           </select>
+          <div>
+            <label className="block text-sm font-semibold text-slate-300 mb-2">Project Members</label>
+            <div className="max-h-40 overflow-y-auto border border-white/10 rounded-lg p-3 bg-white/5">
+              {users.filter(u => u._id !== form.manager).map((user) => (
+                <label key={user._id} className="flex items-center gap-3 py-1 cursor-pointer hover:bg-white/5 rounded px-2">
+                  <input
+                    type="checkbox"
+                    checked={form.members.includes(user._id)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setForm({ ...form, members: [...form.members, user._id] });
+                      } else {
+                        setForm({ ...form, members: form.members.filter(id => id !== user._id) });
+                      }
+                    }}
+                    className="rounded border-white/20 bg-white/10 text-cyan-400 focus:ring-cyan-400"
+                  />
+                  <span className="text-sm text-slate-200">{user.name} <span className="text-slate-400">({user.role})</span></span>
+                </label>
+              ))}
+            </div>
+            {form.members.length > 0 && (
+              <p className="mt-2 text-xs text-slate-400">
+                {form.members.length} member{form.members.length !== 1 ? 's' : ''} selected
+              </p>
+            )}
+          </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
             <button type="button" className="btn-secondary" onClick={() => setShowCreateForm(false)}>
               Cancel
@@ -441,6 +481,25 @@ export default function Projects() {
                     </span>
                   )}
                 </div>
+                <div className="mt-5 flex flex-wrap gap-2">
+                  <button type="button" className="btn-secondary" onClick={openMemberManager} disabled={!canManageMembers}>
+                    <UsersRound size={16} />
+                    Manage Members
+                  </button>
+                  <button type="button" className="btn-secondary" onClick={openMemberManager} disabled={!canManageMembers}>
+                    <Plus size={16} />
+                    Add Members
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => navigate('/dashboard/team#invite-member')}
+                    disabled={!canManageMembers}
+                  >
+                    <UserPlus size={16} />
+                    Invite Members
+                  </button>
+                </div>
                 {canApproveCompletion && (
                   <div className="mt-5">
                     <button
@@ -482,11 +541,15 @@ export default function Projects() {
                       <div className="min-w-0">
                         <p className="truncate text-sm font-black text-white flex items-center gap-2">
                           {member.name}
-                          {projectDetail.manager?._id === member._id && (
+                          {member.role === 'Admin' ? (
+                            <span className="pill bg-violet-500/10 text-violet-200 !px-2 !py-0.5 !tracking-[0.14em]">Admin</span>
+                          ) : projectDetail.manager?._id === member._id ? (
                             <span className="pill bg-amber-400/10 text-amber-100 !px-2 !py-0.5 !tracking-[0.14em]">
                               <Crown size={12} />
-                              Lead
+                              Project Lead
                             </span>
+                          ) : (
+                            <span className="pill bg-white/10 text-slate-200 !px-2 !py-0.5 !tracking-[0.14em]">Member</span>
                           )}
                         </p>
                         <p className="truncate text-xs font-semibold text-slate-500">{member.role || member.email}</p>
@@ -503,32 +566,14 @@ export default function Projects() {
 
               {canManageMembers && (
                 <div className="card p-5">
-                  <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Manage project members</p>
+                  <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Member management</p>
                   <p className="mt-2 text-sm font-semibold leading-6 text-slate-400">
-                    Add collaborators so they can access the project, receive assignments, and participate in delivery.
+                    Manage members after project creation to keep assignments and collaboration scalable.
                   </p>
-                  <div className="mt-4 grid gap-3">
-                    <select
-                      multiple
-                      className="input min-h-40"
-                      value={memberDraft}
-                      onChange={(e) => setMemberDraft(Array.from(e.target.selectedOptions).map((option) => option.value))}
-                    >
-                      {users.map((u) => (
-                        <option key={u._id} value={u._id}>
-                          {u.name} - {u.role}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-                      <button type="button" className="btn-secondary" onClick={() => setMemberDraft((projectDetail.members || []).map((m) => m?._id || m))}>
-                        Reset
-                      </button>
-                      <button type="button" className="btn-primary" onClick={saveMembers} disabled={savingMembers}>
-                        {savingMembers ? 'Saving…' : 'Save members'}
-                      </button>
-                    </div>
-                  </div>
+                  <button type="button" className="btn-primary mt-4" onClick={openMemberManager}>
+                    <UsersRound size={18} />
+                    Manage project members
+                  </button>
                 </div>
               )}
             </section>
@@ -612,6 +657,48 @@ export default function Projects() {
             </div>
           </motion.div>
         )}
+      </Modal>
+
+      <Modal
+        open={showMemberManager}
+        onClose={() => setShowMemberManager(false)}
+        title="Manage project members"
+        description="Select collaborators who should be part of this project."
+        size="md"
+      >
+        <div className="grid gap-3">
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">
+            Admin and assigned Project Lead can add or remove members
+          </p>
+          <select
+            multiple
+            className="input min-h-56"
+            value={memberDraft}
+            onChange={(e) => setMemberDraft(Array.from(e.target.selectedOptions).map((option) => option.value))}
+          >
+            {users.map((u) => (
+              <option key={u._id} value={u._id}>
+                {u.name} - {u.role}
+              </option>
+            ))}
+          </select>
+          <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+            <button type="button" className="btn-secondary" onClick={() => setMemberDraft((projectDetail?.members || []).map((m) => m?._id || m))}>
+              Reset
+            </button>
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={async () => {
+                const saved = await saveMembers();
+                if (saved) setShowMemberManager(false);
+              }}
+              disabled={savingMembers}
+            >
+              {savingMembers ? 'Saving…' : 'Save members'}
+            </button>
+          </div>
+        </div>
       </Modal>
     </motion.div>
   );

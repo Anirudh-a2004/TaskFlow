@@ -1,6 +1,14 @@
 import { Router } from 'express';
 import { body } from 'express-validator';
-import { approveProjectCompletion, createProject, deleteProject, getProject, listProjects, updateProject } from '../controllers/projectController.js';
+import {
+  approveProjectCompletion,
+  createProject,
+  deleteProject,
+  getProject,
+  listProjects,
+  updateProject,
+  updateProjectMembers
+} from '../controllers/projectController.js';
 import { authorize, protect } from '../middleware/authMiddleware.js';
 import { validate } from '../middleware/validate.js';
 
@@ -14,6 +22,11 @@ router.post('/', protect, authorize('Admin'), [
   body('priority').optional().isIn(['Low', 'Medium', 'High', 'Urgent']).withMessage('Invalid project priority.'),
   validate
 ], createProject);
+router.patch('/:id/members', protect, [
+  body('members').isArray({ min: 1 }).withMessage('At least one member is required.'),
+  body('members.*').notEmpty().withMessage('Member ID is required.'),
+  validate
+], updateProjectMembers);
 router.patch('/:id', protect, updateProject);
 router.delete('/:id', protect, authorize('Admin'), deleteProject);
 
