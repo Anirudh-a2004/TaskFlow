@@ -1,19 +1,42 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { CalendarDays, CheckCircle2, Clock, FolderKanban, TrendingUp, TriangleAlert } from 'lucide-react';
+import { ArrowUpRight, Calendar, CheckCircle2, Clock, FolderKanban, Sparkles, TrendingUp, TriangleAlert, Users } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import Skeleton from '../components/Skeleton.jsx';
 import { api } from '../utils/api.js';
+import { useAuth } from '../context/AuthContext.jsx';
 
 const cards = [
-  ['projects', 'Projects', FolderKanban, 'from-blue-500 to-cyan-500'],
-  ['completed', 'Completed', CheckCircle2, 'from-emerald-500 to-teal-500'],
-  ['pending', 'Pending', Clock, 'from-amber-500 to-orange-500'],
-  ['overdue', 'Overdue', TriangleAlert, 'from-rose-500 to-red-500']
+  { key: 'projects', label: 'Active Projects', icon: FolderKanban, gradient: 'from-blue-500 to-cyan-500', trend: '+2.5%' },
+  { key: 'completed', label: 'Completed Tasks', icon: CheckCircle2, gradient: 'from-emerald-500 to-teal-500', trend: '+12.3%' },
+  { key: 'pending', label: 'Pending Work', icon: Clock, gradient: 'from-amber-500 to-orange-500', trend: '-3.1%' },
+  { key: 'overdue', label: 'Overdue Items', icon: TriangleAlert, gradient: 'from-rose-500 to-red-500', trend: '-5.2%' }
 ];
 
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.08,
+      delayChildren: 0.1
+    }
+  }
+};
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 20 },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.5, ease: 'easeOut' }
+  }
+};
+
 export default function Dashboard() {
+  const { user } = useAuth();
   const [data, setData] = useState(null);
+  const [timeRange, setTimeRange] = useState('week');
 
   useEffect(() => {
     api('/dashboard').then(setData);
@@ -22,128 +45,290 @@ export default function Dashboard() {
   if (!data) {
     return (
       <div className="grid gap-6">
-        <Skeleton className="h-28 rounded-[2rem]" />
+        <Skeleton className="h-32 rounded-[2rem]" />
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-28 rounded-[2rem]" />
+          ))}
+        </div>
         <Skeleton className="h-96 rounded-[2rem]" />
       </div>
     );
   }
 
   return (
-    <div className="grid gap-6">
-      <div className="space-y-3">
-        <div className="inline-flex items-center gap-3 rounded-full bg-white/[0.06] px-4 py-2 text-sm font-semibold uppercase tracking-[0.24em] text-cyan-200 shadow-inner shadow-black/10">
-          Product update
-        </div>
-        <div>
-          <p className="text-sm font-black uppercase text-fuchsia-300">Command center</p>
-          <h1 className="mt-1 text-3xl font-black tracking-tight sm:text-4xl">Dashboard</h1>
-          <p className="mt-3 max-w-2xl text-sm text-slate-400">Monitor performance, discover team momentum, and stay on top of the most important work across your organization.</p>
-        </div>
-      </div>
-
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {cards.map(([key, label, Icon, gradient], index) => (
-          <motion.article
-            key={key}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.05 }}
-            className="card overflow-hidden p-5"
-          >
-            <div className={`mb-5 grid h-14 w-14 place-items-center rounded-3xl bg-gradient-to-br ${gradient} text-white shadow-lg shadow-slate-900/20`}>
-              <Icon size={20} />
+    <motion.div initial="hidden" animate="show" className="grid gap-8">
+      {/* Welcome Section */}
+      <motion.div
+        variants={cardVariants}
+        className="relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-gradient-to-br from-blue-600/15 via-indigo-600/10 to-fuchsia-600/15 p-8 shadow-2xl backdrop-blur-2xl"
+      >
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-transparent to-fuchsia-500/10" />
+        <div className="relative flex flex-col items-start justify-between gap-6 lg:flex-row lg:items-center">
+          <div className="flex items-center gap-4">
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              className="grid h-16 w-16 place-items-center rounded-3xl bg-gradient-to-br from-blue-600 via-indigo-500 to-fuchsia-500 shadow-lg shadow-blue-500/30 ring-2 ring-white/10"
+            >
+              <span className="text-2xl font-black text-white">{user?.name?.[0] || 'U'}</span>
+            </motion.div>
+            <div>
+              <h2 className="text-3xl font-black tracking-tight text-white">Welcome back, {user?.name?.split(' ')[0]}</h2>
+              <p className="mt-2 text-sm font-semibold text-slate-400">Ready to make an impact today?</p>
             </div>
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</p>
-            <p className="mt-3 text-4xl font-black text-white">{data.cards[key]}</p>
-            <p className="mt-4 text-sm leading-6 text-slate-400">A quick view of your current team workload and task progress.</p>
+          </div>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-fuchsia-600 px-6 py-3 font-black text-white shadow-lg shadow-blue-600/25 transition hover:shadow-lg hover:shadow-fuchsia-600/30"
+          >
+            <Sparkles size={18} />
+            Get Started
+          </motion.button>
+        </div>
+      </motion.div>
+
+      {/* Stats Cards */}
+      <motion.div variants={containerVariants} className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {cards.map(({ key, label, icon: Icon, gradient, trend }, index) => (
+          <motion.article key={key} variants={cardVariants} className="group card overflow-hidden p-6">
+            <div className="flex items-start justify-between gap-3">
+              <div className={`grid h-14 w-14 place-items-center rounded-3xl bg-gradient-to-br ${gradient} shadow-lg`}>
+                <Icon size={22} className="text-white" />
+              </div>
+              <motion.div
+                whileHover={{ scale: 1.1 }}
+                className={`text-sm font-black ${trend.startsWith('+') ? 'text-emerald-400' : 'text-rose-400'}`}
+              >
+                {trend}
+              </motion.div>
+            </div>
+            <p className="mt-4 text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</p>
+            <motion.p
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 0.2 + index * 0.1 }}
+              className="mt-3 text-4xl font-black text-white"
+            >
+              {data.cards[key]}
+            </motion.p>
+            <motion.div className="mt-4 h-1 rounded-full bg-white/10">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${Math.min(data.cards[key] * 15, 100)}%` }}
+                transition={{ delay: 0.3 + index * 0.1, duration: 0.8 }}
+                className={`h-1 rounded-full bg-gradient-to-r ${gradient}`}
+              />
+            </motion.div>
           </motion.article>
         ))}
-      </section>
+      </motion.div>
 
-      <section className="grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="card min-w-0 p-6">
-          <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+      {/* Analytics Section */}
+      <div className="grid gap-6 xl:grid-cols-3">
+        {/* Productivity Chart */}
+        <motion.div
+          variants={cardVariants}
+          className="col-span-full rounded-[2rem] border border-white/10 bg-white/[0.055] p-6 shadow-2xl backdrop-blur-2xl xl:col-span-2"
+        >
+          <div className="mb-6 flex items-center justify-between gap-4">
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.24em] text-cyan-300">Productivity</p>
-              <h2 className="mt-2 text-2xl font-black">Weekly performance</h2>
+              <h3 className="mt-2 text-2xl font-black text-white">Weekly analytics</h3>
             </div>
-            <span className="pill bg-slate-800/70 text-slate-200">Live insights</span>
+            <div className="flex gap-2">
+              {['day', 'week', 'month'].map((range) => (
+                <button
+                  key={range}
+                  onClick={() => setTimeRange(range)}
+                  className={`rounded-lg px-3 py-1 text-xs font-semibold uppercase transition ${
+                    timeRange === range ? 'bg-blue-600 text-white' : 'bg-white/10 text-slate-400 hover:bg-white/15'
+                  }`}
+                >
+                  {range}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="h-80 min-w-0">
+          <div className="h-96">
             <ResponsiveContainer>
-              <BarChart data={data.productivity}>
-                <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="rgba(148,163,184,.18)" />
-                <XAxis dataKey="day" stroke="#94a3b8" tickLine={false} axisLine={false} />
-                <YAxis allowDecimals={false} stroke="#94a3b8" tickLine={false} axisLine={false} />
-                <Tooltip contentStyle={{ backgroundColor: '#020617', borderRadius: 18, border: '1px solid rgba(148,163,184,0.18)' }} />
-                <Bar dataKey="created" fill="#60a5fa" radius={[12, 12, 0, 0]} />
-                <Bar dataKey="completed" fill="#6366f1" radius={[12, 12, 0, 0]} />
+              <BarChart data={data.productivity} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="grad1" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stopColor="#60a5fa" />
+                    <stop offset="100%" stopColor="#3b82f6" />
+                  </linearGradient>
+                  <linearGradient id="grad2" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stopColor="#6366f1" />
+                    <stop offset="100%" stopColor="#4f46e5" />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="rgba(148,163,184,.1)" />
+                <XAxis dataKey="day" stroke="#94a3b8" tickLine={false} axisLine={false} style={{ fontSize: '12px' }} />
+                <YAxis allowDecimals={false} stroke="#94a3b8" tickLine={false} axisLine={false} style={{ fontSize: '12px' }} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: '#020617',
+                    borderRadius: '16px',
+                    border: '1px solid rgba(148,163,184,0.18)',
+                    boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
+                  }}
+                  labelStyle={{ color: '#fff' }}
+                />
+                <Bar dataKey="created" fill="url(#grad1)" radius={[12, 12, 0, 0]} />
+                <Bar dataKey="completed" fill="url(#grad2)" radius={[12, 12, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </motion.div>
 
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.08 }} className="card min-w-0 p-6">
-          <div className="mb-6 flex items-center justify-between gap-4">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-blue-300">Task status</p>
-              <h2 className="mt-2 text-2xl font-black">Status breakdown</h2>
-            </div>
-            <span className="pill bg-white/10 text-slate-200">Balanced view</span>
+        {/* Task Status Pie */}
+        <motion.div
+          variants={cardVariants}
+          className="rounded-[2rem] border border-white/10 bg-white/[0.055] p-6 shadow-2xl backdrop-blur-2xl"
+        >
+          <div className="mb-6">
+            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-blue-300">Distribution</p>
+            <h3 className="mt-2 text-2xl font-black text-white">Task status</h3>
           </div>
-          <div className="h-80 min-w-0">
+          <div className="h-80">
             <ResponsiveContainer>
               <PieChart>
-                <Pie data={data.statusCounts} dataKey="value" nameKey="name" innerRadius={70} outerRadius={110} paddingAngle={6}>
-                  {['#94a3b8', '#06b6d4', '#8b5cf6', '#22c55e'].map((color) => <Cell key={color} fill={color} />)}
+                <Pie
+                  data={data.statusCounts}
+                  dataKey="value"
+                  nameKey="name"
+                  innerRadius={60}
+                  outerRadius={110}
+                  paddingAngle={6}
+                  startAngle={90}
+                  endAngle={-270}
+                >
+                  {['#94a3b8', '#06b6d4', '#8b5cf6', '#22c55e'].map((color) => (
+                    <Cell key={color} fill={color} />
+                  ))}
                 </Pie>
-                <Tooltip contentStyle={{ backgroundColor: '#020617', borderRadius: 18, border: '1px solid rgba(148,163,184,0.18)' }} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: '#020617',
+                    borderRadius: '16px',
+                    border: '1px solid rgba(148,163,184,0.18)',
+                    boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
+                  }}
+                  labelStyle={{ color: '#fff' }}
+                />
               </PieChart>
             </ResponsiveContainer>
           </div>
         </motion.div>
-      </section>
+      </div>
 
-      <section className="grid gap-6 xl:grid-cols-[0.75fr_1.25fr]">
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.12 }} className="card p-6">
-          <div className="mb-5 flex items-center gap-3">
-            <CalendarDays className="text-blue-500" />
-            <h2 className="text-xl font-black">Upcoming schedule</h2>
-          </div>
-          <div className="grid gap-4">
-            {data.calendar.slice(0, 7).map((item) => (
-              <div key={item.id} className="group flex items-center justify-between gap-4 rounded-3xl border border-white/10 bg-white/[0.04] p-4 transition hover:border-cyan-300/20 hover:bg-white/[0.08]">
-                <div>
-                  <p className="font-bold text-white">{item.title}</p>
-                  <p className="mt-1 text-sm text-slate-400">{item.project}</p>
-                </div>
-                <span className="pill bg-cyan-500/10 text-cyan-200">{new Date(item.date).toLocaleDateString()}</span>
-              </div>
-            ))}
-          </div>
-        </motion.div>
-
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.14 }} className="card p-6">
-          <div className="mb-5 flex items-center justify-between gap-3">
+      {/* Bottom Section */}
+      <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+        {/* Upcoming Calendar */}
+        <motion.div
+          variants={cardVariants}
+          className="rounded-[2rem] border border-white/10 bg-white/[0.055] p-6 shadow-2xl backdrop-blur-2xl"
+        >
+          <div className="mb-6 flex items-center gap-3">
+            <Calendar className="text-blue-400" size={22} />
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-fuchsia-300">Activity timeline</p>
-              <h2 className="mt-2 text-xl font-black">Team actions</h2>
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">Schedule</p>
+              <h3 className="text-lg font-black text-white">Upcoming tasks</h3>
             </div>
-            <span className="pill bg-white/10 text-slate-200">Recent</span>
           </div>
-          <div className="relative space-y-6 pl-8">
-            <div className="absolute left-5 top-0 h-full w-px bg-white/10" />
-            {data.recentActivity.slice(0, 6).map((item) => (
-              <div key={item._id} className="relative rounded-3xl border border-white/10 bg-white/[0.04] p-4 shadow-inner shadow-black/5">
-                <div className="absolute left-[-10px] top-5 h-4 w-4 rounded-full bg-cyan-400 shadow-[0_0_0_6px_rgba(6,182,212,0.08)]" />
-                <p className="text-sm font-black text-white">{item.actor?.name || 'System'} <span className="font-semibold text-cyan-200">{item.action}</span></p>
-                <p className="mt-2 text-sm leading-6 text-slate-400">{item.detail}</p>
-                <p className="mt-3 text-xs uppercase tracking-[0.25em] text-slate-500">{new Date(item.createdAt).toLocaleString()}</p>
-              </div>
+          <div className="space-y-3">
+            {data.calendar.slice(0, 6).map((item, index) => (
+              <motion.div
+                key={item.id}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.08 }}
+                className="group flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 transition hover:bg-white/[0.08]"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold text-white">{item.title}</p>
+                  <p className="text-xs text-slate-500">{item.project}</p>
+                </div>
+                <span className="pill ml-2 flex-shrink-0 bg-cyan-500/10 text-cyan-200">
+                  {new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                </span>
+              </motion.div>
             ))}
           </div>
         </motion.div>
-      </section>
-    </div>
+
+        {/* Activity Timeline */}
+        <motion.div
+          variants={cardVariants}
+          className="rounded-[2rem] border border-white/10 bg-white/[0.055] p-6 shadow-2xl backdrop-blur-2xl"
+        >
+          <div className="mb-6 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <TrendingUp className="text-fuchsia-400" size={22} />
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">Activity</p>
+                <h3 className="text-lg font-black text-white">Team timeline</h3>
+              </div>
+            </div>
+            <span className="pill bg-white/10 text-slate-200">Today</span>
+          </div>
+          <div className="relative space-y-5 pl-8">
+            <div className="absolute left-5 top-0 h-full w-px bg-gradient-to-b from-cyan-400/50 via-cyan-400/25 to-transparent" />
+            {data.recentActivity.slice(0, 5).map((item, index) => (
+              <motion.div
+                key={item._id}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.1 }}
+                className="group relative"
+              >
+                <motion.div
+                  whileHover={{ scale: 1.2 }}
+                  className="absolute left-[-10px] top-2 h-5 w-5 rounded-full bg-gradient-to-br from-cyan-400 to-blue-400 shadow-[0_0_0_8px_rgba(6,182,212,0.1)]"
+                />
+                <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 transition hover:border-cyan-300/30 hover:bg-white/[0.08]">
+                  <p className="text-sm font-black text-white">
+                    {item.actor?.name || 'System'} <span className="font-semibold text-cyan-300">{item.action}</span>
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-slate-400">{item.detail}</p>
+                  <p className="mt-2 text-xs uppercase tracking-[0.2em] text-slate-600">
+                    {new Date(item.createdAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                  </p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </motion.div>
+      </div>
+
+      {/* Quick Actions */}
+      <motion.div
+        variants={cardVariants}
+        className="rounded-[2rem] border border-white/10 bg-gradient-to-r from-blue-600/10 via-indigo-600/10 to-fuchsia-600/10 p-6 shadow-2xl backdrop-blur-2xl"
+      >
+        <p className="mb-4 text-sm font-semibold uppercase tracking-[0.24em] text-slate-400">Quick Actions</p>
+        <div className="grid gap-3 md:grid-cols-3">
+          {[
+            { label: 'Create Project', icon: FolderKanban },
+            { label: 'Add Task', icon: CheckCircle2 },
+            { label: 'Invite Team', icon: Users }
+          ].map((action, idx) => {
+            const Icon = action.icon;
+            return (
+              <motion.button
+                key={idx}
+                whileHover={{ scale: 1.02, y: -2 }}
+                whileTap={{ scale: 0.98 }}
+                className="flex items-center justify-center gap-2 rounded-2xl bg-white/[0.08] px-4 py-3 font-semibold text-white transition hover:bg-white/[0.12]"
+              >
+                <Icon size={18} />
+                {action.label}
+              </motion.button>
+            );
+          })}
+        </div>
+      </motion.div>
+    </motion.div>
   );
 }

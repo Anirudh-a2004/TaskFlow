@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
 import { DragDropContext, Draggable, Droppable } from '@hello-pangea/dnd';
-import { Calendar, MessageSquare, Paperclip, Plus } from 'lucide-react';
+import { Calendar, MessageSquare, Paperclip, Plus, AlertCircle, CheckCircle2, Zap, Clock, ChevronRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Badge from '../components/Badge.jsx';
 import Skeleton from '../components/Skeleton.jsx';
@@ -8,7 +9,23 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useApp } from '../context/AppContext.jsx';
 import { api, qs } from '../utils/api.js';
 
-const columns = ['Todo', 'In Progress', 'Review', 'Completed'];
+const columns = [
+  { id: 'Todo', label: 'Todo', icon: Clock, gradient: 'from-slate-500 to-slate-600', accent: 'slate' },
+  { id: 'In Progress', label: 'In Progress', icon: Zap, gradient: 'from-blue-500 to-cyan-500', accent: 'blue' },
+  { id: 'Review', label: 'Review', icon: CheckCircle2, gradient: 'from-amber-500 to-orange-500', accent: 'amber' },
+  { id: 'Completed', label: 'Completed', icon: CheckCircle2, gradient: 'from-emerald-500 to-teal-500', accent: 'emerald' }
+];
+
+const priorityConfig = {
+  Low: { color: 'bg-slate-500/15 text-slate-300', badge: 'bg-slate-500/20 border-slate-500/30' },
+  Medium: { color: 'bg-blue-500/15 text-blue-300', badge: 'bg-blue-500/20 border-blue-500/30' },
+  High: { color: 'bg-amber-500/15 text-amber-300', badge: 'bg-amber-500/20 border-amber-500/30' },
+  Urgent: { color: 'bg-rose-500/15 text-rose-300', badge: 'bg-rose-500/20 border-rose-500/30' }
+};
+
+const isOverdue = (dueDate) => dueDate && new Date(dueDate) < new Date() && new Date(dueDate).toDateString() !== new Date().toDateString();
+const isToday = (dueDate) => dueDate && new Date(dueDate).toDateString() === new Date().toDateString();
+const isSoon = (dueDate) => dueDate && new Date(dueDate) > new Date() && new Date(dueDate).getTime() - new Date().getTime() < 7 * 24 * 60 * 60 * 1000;
 
 export default function Tasks() {
   const { isAdmin } = useAuth();
@@ -45,7 +62,7 @@ export default function Tasks() {
     load();
   }, [search]);
 
-  const grouped = useMemo(() => Object.fromEntries(columns.map((status) => [status, tasks.filter((task) => task.status === status)])), [tasks]);
+  const grouped = useMemo(() => Object.fromEntries(columns.map((col) => [col.id, tasks.filter((task) => task.status === col.id)])), [tasks]);
 
   const create = async (event) => {
     event.preventDefault();
@@ -66,121 +83,288 @@ export default function Tasks() {
   };
 
   return (
-    <div className="grid gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid gap-8">
+      {/* Header */}
+      <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
         <div>
           <p className="text-sm font-black uppercase text-fuchsia-300">Execution board</p>
-          <h1 className="text-3xl font-black">Kanban Tasks</h1>
+          <h1 className="mt-1 text-4xl font-black tracking-tight text-white">Kanban Board</h1>
         </div>
-        {isAdmin && <a href="#create-task" className="btn-secondary">New task</a>}
-      </div>
+        {isAdmin && (
+          <motion.a
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            href="#create-task"
+            className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-fuchsia-600 px-5 py-3 font-black text-white shadow-lg shadow-blue-600/25 transition hover:shadow-lg hover:shadow-fuchsia-600/30"
+          >
+            <Plus size={20} />
+            New Task
+          </motion.a>
+        )}
+      </motion.div>
 
       {loading ? (
         <div className="grid gap-4">
           <Skeleton className="h-24 rounded-[2rem]" />
-          <Skeleton className="h-[620px] rounded-[2rem]" />
+          <Skeleton className="h-[520px] rounded-[2rem]" />
         </div>
       ) : (
-        <section className="grid gap-6 xl:grid-cols-[1fr_360px]">
+        <section className="grid gap-6 xl:grid-cols-[1fr_380px]">
           <DragDropContext onDragEnd={onDragEnd}>
-            <div className="grid gap-4 lg:grid-cols-4">
-              {columns.map((column) => (
-                <Droppable droppableId={column} key={column}>
-                  {(provided) => (
-                    <div
-                      ref={provided.innerRef}
-                      {...provided.droppableProps}
-                      className="min-h-[520px] rounded-[1.75rem] border border-white/10 bg-white/[0.035] p-3 shadow-2xl shadow-black/10 backdrop-blur-2xl"
-                    >
-                      <div className="mb-3 flex items-center justify-between px-2">
-                        <h2 className="font-black text-white">{column}</h2>
-                        <span className="pill">{grouped[column].length}</span>
-                      </div>
-                      <div className="grid gap-3">
-                        {grouped[column].length === 0 ? (
-                          <div className="rounded-3xl border border-white/10 bg-slate-950/80 p-4 text-sm text-slate-400">No tasks yet in this lane.</div>
-                        ) : null}
-                        {grouped[column].map((task, index) => (
-                          <Draggable key={task._id} draggableId={task._id} index={index}>
-                            {(drag) => (
-                              <article
-                                ref={drag.innerRef}
-                                {...drag.draggableProps}
-                                {...drag.dragHandleProps}
-                                className="rounded-[1.75rem] border border-white/10 bg-slate-950/70 p-4 shadow-xl shadow-black/20 transition duration-200 hover:-translate-y-1 hover:border-cyan-300/30 hover:bg-slate-900/85"
+            <motion.div className="grid gap-4 lg:grid-cols-4" initial="hidden" animate="show" variants={{ show: { transition: { staggerChildren: 0.08 } } }}>
+              {columns.map((column) => {
+                const Icon = column.icon;
+                return (
+                  <motion.div
+                    key={column.id}
+                    variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { duration: 0.4 } } }}
+                  >
+                    <Droppable droppableId={column.id}>
+                      {(provided, snapshot) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.droppableProps}
+                          className={`min-h-[580px] rounded-[2rem] border border-white/10 transition-all duration-300 ${
+                            snapshot.isDraggingOver
+                              ? 'border-blue-500/50 bg-white/[0.08] shadow-2xl shadow-blue-500/20 backdrop-blur-2xl'
+                              : 'bg-white/[0.035] shadow-2xl shadow-black/10 backdrop-blur-2xl'
+                          }`}
+                        >
+                          {/* Column Header */}
+                          <div className={`relative overflow-hidden rounded-t-[2rem] bg-gradient-to-r ${column.gradient} p-5`}>
+                            <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+                            <div className="relative flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-3">
+                                <Icon size={20} className="text-white" />
+                                <div>
+                                  <h2 className="font-black text-white">{column.label}</h2>
+                                  <p className="text-xs text-white/70">{grouped[column.id].length} task{grouped[column.id].length !== 1 ? 's' : ''}</p>
+                                </div>
+                              </div>
+                              <motion.div
+                                initial={{ scale: 0.8, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                className="grid h-8 w-8 place-items-center rounded-lg bg-white/20 font-black text-white backdrop-blur-md"
                               >
-                                <div className="mb-3 flex items-start justify-between gap-2">
-                                  <h3 className="font-black text-white">{task.title}</h3>
-                                  <Badge>{task.priority}</Badge>
-                                </div>
-                                <p className="line-clamp-3 text-sm leading-6 text-slate-400">{task.description}</p>
-                                <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold text-slate-400">
-                                  {task.dueDate && (
-                                    <span className="flex items-center gap-1">
-                                      <Calendar size={14} />{new Date(task.dueDate).toLocaleDateString()}
-                                    </span>
-                                  )}
-                                  <span className="flex items-center gap-1">
-                                    <MessageSquare size={14} />Comments
-                                  </span>
-                                  <span className="flex items-center gap-1">
-                                    <Paperclip size={14} />{task.attachments?.length || 0}
-                                  </span>
-                                </div>
-                                <div className="mt-4 flex items-center justify-between">
-                                  <span className="text-xs font-semibold text-slate-500">{task.project?.name || 'No project'}</span>
-                                  <span className="grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-blue-600 via-indigo-500 to-fuchsia-500 text-xs font-black text-white">
-                                    {task.assignee?.name?.[0] || '?'}
-                                  </span>
-                                </div>
-                                {isAdmin && (
-                                  <button type="button" onClick={() => remove(task._id)} className="btn-secondary mt-4 w-full justify-center">Delete task</button>
-                                )}
-                              </article>
+                                {grouped[column.id].length}
+                              </motion.div>
+                            </div>
+                          </div>
+
+                          {/* Column Content */}
+                          <div className="space-y-3 p-4">
+                            {grouped[column.id].length === 0 ? (
+                              <motion.div
+                                initial={{ opacity: 0, scale: 0.9 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                className="rounded-2xl border-2 border-dashed border-white/10 bg-white/[0.02] py-12 text-center"
+                              >
+                                <AlertCircle size={32} className="mx-auto mb-2 text-slate-500" />
+                                <p className="text-sm font-semibold text-slate-500">No tasks yet</p>
+                                <p className="text-xs text-slate-600">Drag tasks here or create a new one</p>
+                              </motion.div>
+                            ) : (
+                              grouped[column.id].map((task, index) => {
+                                const overdue = isOverdue(task.dueDate);
+                                const today = isToday(task.dueDate);
+                                const soon = isSoon(task.dueDate);
+
+                                return (
+                                  <Draggable key={task._id} draggableId={task._id} index={index}>
+                                    {(drag, dragSnapshot) => (
+                                      <motion.div
+                                        ref={drag.innerRef}
+                                        {...drag.draggableProps}
+                                        {...drag.dragHandleProps}
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: index * 0.05 }}
+                                        whileHover={{ y: -4 }}
+                                        whileTap={{ scale: 1.02 }}
+                                        className={`group cursor-grab rounded-2xl border border-white/15 p-4 transition-all duration-300 active:cursor-grabbing ${
+                                          dragSnapshot.isDragging
+                                            ? 'border-blue-400/50 bg-white/[0.12] shadow-2xl shadow-blue-500/30 backdrop-blur-xl'
+                                            : 'bg-white/[0.06] shadow-lg shadow-black/20 backdrop-blur-md hover:border-cyan-300/40 hover:bg-white/[0.1]'
+                                        } ${overdue && column.id !== 'Completed' ? 'border-rose-400/40 bg-rose-500/10' : ''}`}
+                                      >
+                                        {/* Priority & Status */}
+                                        <div className="mb-3 flex items-start justify-between gap-2">
+                                          <h3 className="flex-1 font-bold text-white line-clamp-2">{task.title}</h3>
+                                          <motion.div whileHover={{ scale: 1.1 }} className={`flex-shrink-0 rounded-lg border ${priorityConfig[task.priority]?.badge} px-2 py-1 text-xs font-bold uppercase`}>
+                                            {task.priority}
+                                          </motion.div>
+                                        </div>
+
+                                        {/* Description */}
+                                        {task.description && <p className="mb-3 line-clamp-2 text-xs leading-5 text-slate-400">{task.description}</p>}
+
+                                        {/* Due Date */}
+                                        {task.dueDate && (
+                                          <motion.div
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            className={`mb-3 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold ${
+                                              overdue ? 'border border-rose-500/30 bg-rose-500/15 text-rose-300' : today ? 'border border-blue-500/30 bg-blue-500/15 text-blue-300' : soon ? 'border border-amber-500/30 bg-amber-500/15 text-amber-300' : 'border border-slate-500/30 bg-slate-500/15 text-slate-300'
+                                            }`}
+                                          >
+                                            <Calendar size={12} />
+                                            {new Date(task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                            {overdue && column.id !== 'Completed' && <AlertCircle size={12} className="ml-1" />}
+                                          </motion.div>
+                                        )}
+
+                                        {/* Metadata Footer */}
+                                        <div className="mb-3 flex flex-wrap gap-2 text-xs text-slate-400">
+                                          {task.comments?.length > 0 && (
+                                            <span className="flex items-center gap-1 rounded-md bg-white/5 px-2 py-1">
+                                              <MessageSquare size={12} />
+                                              {task.comments.length}
+                                            </span>
+                                          )}
+                                          {task.attachments?.length > 0 && (
+                                            <span className="flex items-center gap-1 rounded-md bg-white/5 px-2 py-1">
+                                              <Paperclip size={12} />
+                                              {task.attachments.length}
+                                            </span>
+                                          )}
+                                        </div>
+
+                                        {/* Project & Assignee */}
+                                        <div className="flex items-center justify-between gap-2 border-t border-white/10 pt-3">
+                                          <span className="flex-1 truncate text-xs font-semibold text-slate-500">{task.project?.name || 'No project'}</span>
+                                          {task.assignee ? (
+                                            <motion.div
+                                              whileHover={{ scale: 1.15 }}
+                                              title={task.assignee?.name}
+                                              className="grid h-7 w-7 flex-shrink-0 place-items-center rounded-full bg-gradient-to-br from-blue-600 via-indigo-500 to-fuchsia-500 text-xs font-black text-white shadow-md shadow-blue-500/20 ring-1 ring-white/20"
+                                            >
+                                              {task.assignee?.name?.[0] || '?'}
+                                            </motion.div>
+                                          ) : (
+                                            <div className="grid h-7 w-7 flex-shrink-0 place-items-center rounded-full border border-white/20 bg-white/5 text-xs font-black text-slate-500">
+                                              ?
+                                            </div>
+                                          )}
+                                        </div>
+
+                                        {/* Delete Button */}
+                                        {isAdmin && (
+                                          <motion.button
+                                            whileHover={{ scale: 1.02 }}
+                                            whileTap={{ scale: 0.98 }}
+                                            type="button"
+                                            onClick={() => remove(task._id)}
+                                            className="btn-secondary mt-3 w-full justify-center py-2 text-xs"
+                                          >
+                                            Delete task
+                                          </motion.button>
+                                        )}
+                                      </motion.div>
+                                    )}
+                                  </Draggable>
+                                );
+                              })
                             )}
-                          </Draggable>
-                        ))}
-                        {provided.placeholder}
-                      </div>
-                    </div>
-                  )}
-                </Droppable>
-              ))}
-            </div>
+                            {provided.placeholder}
+                          </div>
+                        </div>
+                      )}
+                    </Droppable>
+                  </motion.div>
+                );
+              })}
+            </motion.div>
           </DragDropContext>
 
+          {/* Create Task Form - Sidebar */}
           {isAdmin && (
-            <form id="create-task" onSubmit={create} className="card sticky top-24 h-fit p-5">
-              <h2 className="mb-4 flex items-center gap-2 text-xl font-black"><Plus className="text-blue-600" />Create task</h2>
+            <motion.form
+              id="create-task"
+              onSubmit={create}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.3 }}
+              className="card sticky top-24 h-fit overflow-hidden p-6 shadow-2xl"
+            >
+              <div className="mb-6 flex items-center gap-2">
+                <Plus className="text-blue-600" size={22} />
+                <h2 className="text-xl font-black">Create Task</h2>
+              </div>
               <div className="grid gap-4">
-                <input className="input" placeholder="Task title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
-                <textarea className="input min-h-24" placeholder="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-                <select className="input" value={form.project} onChange={(e) => setForm({ ...form, project: e.target.value })} required>
+                <motion.input
+                  whileFocus={{ scale: 1.02 }}
+                  className="input"
+                  placeholder="Task title"
+                  value={form.title}
+                  onChange={(e) => setForm({ ...form, title: e.target.value })}
+                  required
+                />
+                <motion.textarea
+                  whileFocus={{ scale: 1.02 }}
+                  className="input min-h-24"
+                  placeholder="Description (optional)"
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                />
+                <motion.select
+                  whileFocus={{ scale: 1.02 }}
+                  className="input"
+                  value={form.project}
+                  onChange={(e) => setForm({ ...form, project: e.target.value })}
+                  required
+                >
                   <option value="">Select project</option>
                   {projects.map((project) => (
-                    <option key={project._id} value={project._id}>{project.name}</option>
+                    <option key={project._id} value={project._id}>
+                      {project.name}
+                    </option>
                   ))}
-                </select>
-                <select className="input" value={form.assignee} onChange={(e) => setForm({ ...form, assignee: e.target.value })}>
+                </motion.select>
+                <motion.select
+                  whileFocus={{ scale: 1.02 }}
+                  className="input"
+                  value={form.assignee}
+                  onChange={(e) => setForm({ ...form, assignee: e.target.value })}
+                >
                   <option value="">Unassigned</option>
                   {users.map((user) => (
-                    <option key={user._id} value={user._id}>{user.name}</option>
+                    <option key={user._id} value={user._id}>
+                      {user.name}
+                    </option>
                   ))}
-                </select>
+                </motion.select>
                 <div className="grid grid-cols-2 gap-3">
-                  <select className="input" value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}>
+                  <motion.select
+                    whileFocus={{ scale: 1.02 }}
+                    className="input"
+                    value={form.priority}
+                    onChange={(e) => setForm({ ...form, priority: e.target.value })}
+                  >
                     {['Low', 'Medium', 'High', 'Urgent'].map((item) => (
                       <option key={item}>{item}</option>
                     ))}
-                  </select>
-                  <input className="input" type="date" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} />
+                  </motion.select>
+                  <motion.input
+                    whileFocus={{ scale: 1.02 }}
+                    className="input"
+                    type="date"
+                    value={form.dueDate}
+                    onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
+                  />
                 </div>
-                <button className="btn-primary">Create task</button>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="btn-primary flex items-center justify-center gap-2"
+                >
+                  <Plus size={18} />
+                  Create task
+                </motion.button>
               </div>
-            </form>
+            </motion.form>
           )}
         </section>
       )}
-    </div>
+    </motion.div>
   );
 }
