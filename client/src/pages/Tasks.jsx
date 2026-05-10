@@ -83,21 +83,21 @@ export default function Tasks() {
   };
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid gap-8">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid gap-6 sm:gap-8">
       {/* Header */}
-      <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+      <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center sm:gap-4">
         <div>
-          <p className="text-sm font-black uppercase text-fuchsia-300">Execution board</p>
-          <h1 className="mt-1 text-4xl font-black tracking-tight text-white">Kanban Board</h1>
+          <p className="text-xs font-black uppercase text-fuchsia-300 sm:text-sm">Execution board</p>
+          <h1 className="mt-1 text-3xl font-black tracking-tight text-white sm:text-4xl">Kanban Board</h1>
         </div>
         {isAdmin && (
           <motion.a
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             href="#create-task"
-            className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-fuchsia-600 px-5 py-3 font-black text-white shadow-lg shadow-blue-600/25 transition hover:shadow-lg hover:shadow-fuchsia-600/30"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-fuchsia-600 px-4 py-3 font-black text-white shadow-lg shadow-blue-600/25 transition hover:shadow-lg hover:shadow-fuchsia-600/30 sm:w-auto sm:px-5"
           >
-            <Plus size={20} />
+            <Plus size={18} className="sm:size-20" />
             New Task
           </motion.a>
         )}
@@ -111,14 +111,16 @@ export default function Tasks() {
       ) : (
         <section className="grid gap-6 xl:grid-cols-[1fr_380px]">
           <DragDropContext onDragEnd={onDragEnd}>
-            <motion.div className="grid gap-4 lg:grid-cols-4" initial="hidden" animate="show" variants={{ show: { transition: { staggerChildren: 0.08 } } }}>
-              {columns.map((column) => {
-                const Icon = column.icon;
-                return (
-                  <motion.div
-                    key={column.id}
-                    variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { duration: 0.4 } } }}
-                  >
+            <motion.div className="overflow-x-auto pb-4" initial="hidden" animate="show" variants={{ show: { transition: { staggerChildren: 0.08 } } }}>
+              <div className="flex gap-4 sm:gap-6 lg:grid lg:grid-cols-4 lg:gap-6">
+                {columns.map((column) => {
+                  const Icon = column.icon;
+                  return (
+                    <motion.div
+                      key={column.id}
+                      variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { duration: 0.4 } } }}
+                      className="flex-shrink-0 w-72 sm:w-80 lg:w-auto space-y-4"
+                    >
                     <Droppable droppableId={column.id}>
                       {(provided, snapshot) => (
                         <div
@@ -273,6 +275,7 @@ export default function Tasks() {
                   </motion.div>
                 );
               })}
+              </div>
             </motion.div>
           </DragDropContext>
 
@@ -284,13 +287,13 @@ export default function Tasks() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.3 }}
-              className="card sticky top-24 h-fit overflow-hidden p-6 shadow-2xl"
+              className="card sticky top-6 h-fit overflow-hidden p-4 shadow-2xl sm:top-24 sm:p-6"
             >
-              <div className="mb-6 flex items-center gap-2">
-                <Plus className="text-blue-600" size={22} />
-                <h2 className="text-xl font-black">Create Task</h2>
+              <div className="mb-4 flex items-center gap-2 sm:mb-6">
+                <Plus className="text-blue-600" size={20} />
+                <h2 className="text-lg font-black text-white sm:text-xl">Create Task</h2>
               </div>
-              <div className="grid gap-4">
+              <div className="grid gap-3 sm:gap-4">
                 <motion.input
                   whileFocus={{ scale: 1.02 }}
                   className="input"
@@ -301,7 +304,7 @@ export default function Tasks() {
                 />
                 <motion.textarea
                   whileFocus={{ scale: 1.02 }}
-                  className="input min-h-24"
+                  className="input min-h-20 sm:min-h-24"
                   placeholder="Description (optional)"
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}

@@ -61,26 +61,26 @@ export default function Dashboard() {
       {/* Welcome Section */}
       <motion.div
         variants={cardVariants}
-        className="relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-gradient-to-br from-blue-600/15 via-indigo-600/10 to-fuchsia-600/15 p-8 shadow-2xl backdrop-blur-2xl"
+        className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-br from-blue-600/15 via-indigo-600/10 to-fuchsia-600/15 p-6 shadow-2xl backdrop-blur-2xl sm:p-8"
       >
         <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-transparent to-fuchsia-500/10" />
-        <div className="relative flex flex-col items-start justify-between gap-6 lg:flex-row lg:items-center">
-          <div className="flex items-center gap-4">
+        <div className="relative flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center sm:gap-6">
+          <div className="flex items-center gap-3 sm:gap-4">
             <motion.div
               whileHover={{ scale: 1.05 }}
-              className="grid h-16 w-16 place-items-center rounded-3xl bg-gradient-to-br from-blue-600 via-indigo-500 to-fuchsia-500 shadow-lg shadow-blue-500/30 ring-2 ring-white/10"
+              className="grid h-12 w-12 place-items-center rounded-3xl bg-gradient-to-br from-blue-600 via-indigo-500 to-fuchsia-500 shadow-lg shadow-blue-500/30 ring-2 ring-white/10 sm:h-16 sm:w-16"
             >
-              <span className="text-2xl font-black text-white">{user?.name?.[0] || 'U'}</span>
+              <span className="text-xl font-black text-white sm:text-2xl">{user?.name?.[0] || 'U'}</span>
             </motion.div>
-            <div>
-              <h2 className="text-3xl font-black tracking-tight text-white">Welcome back, {user?.name?.split(' ')[0]}</h2>
-              <p className="mt-2 text-sm font-semibold text-slate-400">Ready to make an impact today?</p>
+            <div className="min-w-0">
+              <h2 className="text-2xl font-black tracking-tight text-white sm:text-3xl">Welcome back, {user?.name?.split(' ')[0]}</h2>
+              <p className="mt-1 text-sm font-semibold text-slate-400 sm:mt-2">Ready to make an impact today?</p>
             </div>
           </div>
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-fuchsia-600 px-6 py-3 font-black text-white shadow-lg shadow-blue-600/25 transition hover:shadow-lg hover:shadow-fuchsia-600/30"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-fuchsia-600 px-4 py-3 font-black text-white shadow-lg shadow-blue-600/25 transition hover:shadow-lg hover:shadow-fuchsia-600/30 sm:w-auto sm:px-6"
           >
             <Sparkles size={18} />
             Get Started
@@ -89,30 +89,30 @@ export default function Dashboard() {
       </motion.div>
 
       {/* Stats Cards */}
-      <motion.div variants={containerVariants} className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <motion.div variants={containerVariants} className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
         {cards.map(({ key, label, icon: Icon, gradient, trend }, index) => (
-          <motion.article key={key} variants={cardVariants} className="group card overflow-hidden p-6">
-            <div className="flex items-start justify-between gap-3">
-              <div className={`grid h-14 w-14 place-items-center rounded-3xl bg-gradient-to-br ${gradient} shadow-lg`}>
-                <Icon size={22} className="text-white" />
+          <motion.article key={key} variants={cardVariants} className="group card overflow-hidden p-4 sm:p-6">
+            <div className="flex items-start justify-between gap-2 sm:gap-3">
+              <div className={`grid h-10 w-10 place-items-center rounded-3xl bg-gradient-to-br ${gradient} shadow-lg sm:h-14 sm:w-14`}>
+                <Icon size={18} className="text-white sm:size-22" />
               </div>
               <motion.div
                 whileHover={{ scale: 1.1 }}
-                className={`text-sm font-black ${trend.startsWith('+') ? 'text-emerald-400' : 'text-rose-400'}`}
+                className={`text-xs font-black sm:text-sm ${trend.startsWith('+') ? 'text-emerald-400' : 'text-rose-400'}`}
               >
                 {trend}
               </motion.div>
             </div>
-            <p className="mt-4 text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</p>
+            <p className="mt-3 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 sm:mt-4 sm:text-sm">{label}</p>
             <motion.p
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ delay: 0.2 + index * 0.1 }}
-              className="mt-3 text-4xl font-black text-white"
+              className="mt-2 text-2xl font-black text-white sm:mt-3 sm:text-4xl"
             >
               {data.cards[key]}
             </motion.p>
-            <motion.div className="mt-4 h-1 rounded-full bg-white/10">
+            <motion.div className="mt-3 h-1 rounded-full bg-white/10 sm:mt-4">
               <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${Math.min(data.cards[key] * 15, 100)}%` }}
@@ -125,23 +125,23 @@ export default function Dashboard() {
       </motion.div>
 
       {/* Analytics Section */}
-      <div className="grid gap-6 xl:grid-cols-3">
+      <div className="grid gap-4 sm:gap-6 lg:grid-cols-3">
         {/* Productivity Chart */}
         <motion.div
           variants={cardVariants}
-          className="col-span-full rounded-[2rem] border border-white/10 bg-white/[0.055] p-6 shadow-2xl backdrop-blur-2xl xl:col-span-2"
+          className="col-span-full rounded-[2rem] border border-white/10 bg-white/[0.055] p-4 shadow-2xl backdrop-blur-2xl sm:p-6 lg:col-span-2"
         >
-          <div className="mb-6 flex items-center justify-between gap-4">
+          <div className="mb-4 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-cyan-300">Productivity</p>
-              <h3 className="mt-2 text-2xl font-black text-white">Weekly analytics</h3>
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300 sm:text-sm">Productivity</p>
+              <h3 className="mt-1 text-xl font-black text-white sm:mt-2 sm:text-2xl">Weekly analytics</h3>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-1 sm:gap-2">
               {['day', 'week', 'month'].map((range) => (
                 <button
                   key={range}
                   onClick={() => setTimeRange(range)}
-                  className={`rounded-lg px-3 py-1 text-xs font-semibold uppercase transition ${
+                  className={`rounded-lg px-2 py-1 text-xs font-semibold uppercase transition sm:px-3 sm:text-sm ${
                     timeRange === range ? 'bg-blue-600 text-white' : 'bg-white/10 text-slate-400 hover:bg-white/15'
                   }`}
                 >
@@ -150,9 +150,9 @@ export default function Dashboard() {
               ))}
             </div>
           </div>
-          <div className="h-96">
-            <ResponsiveContainer>
-              <BarChart data={data.productivity} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+          <div className="h-64 sm:h-80 lg:h-96">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={data.productivity} margin={{ top: 20, right: 10, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="grad1" x1="0%" y1="0%" x2="0%" y2="100%">
                     <stop offset="0%" stopColor="#60a5fa" />
@@ -164,19 +164,34 @@ export default function Dashboard() {
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="rgba(148,163,184,.1)" />
-                <XAxis dataKey="day" stroke="#94a3b8" tickLine={false} axisLine={false} style={{ fontSize: '12px' }} />
-                <YAxis allowDecimals={false} stroke="#94a3b8" tickLine={false} axisLine={false} style={{ fontSize: '12px' }} />
+                <XAxis
+                  dataKey="day"
+                  stroke="#94a3b8"
+                  tickLine={false}
+                  axisLine={false}
+                  style={{ fontSize: '10px' }}
+                  interval="preserveStartEnd"
+                />
+                <YAxis
+                  allowDecimals={false}
+                  stroke="#94a3b8"
+                  tickLine={false}
+                  axisLine={false}
+                  style={{ fontSize: '10px' }}
+                  width={30}
+                />
                 <Tooltip
                   contentStyle={{
                     backgroundColor: '#020617',
-                    borderRadius: '16px',
+                    borderRadius: '12px',
                     border: '1px solid rgba(148,163,184,0.18)',
-                    boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
+                    boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+                    fontSize: '12px'
                   }}
                   labelStyle={{ color: '#fff' }}
                 />
-                <Bar dataKey="created" fill="url(#grad1)" radius={[12, 12, 0, 0]} />
-                <Bar dataKey="completed" fill="url(#grad2)" radius={[12, 12, 0, 0]} />
+                <Bar dataKey="created" fill="url(#grad1)" radius={[8, 8, 0, 0]} />
+                <Bar dataKey="completed" fill="url(#grad2)" radius={[8, 8, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -185,22 +200,22 @@ export default function Dashboard() {
         {/* Task Status Pie */}
         <motion.div
           variants={cardVariants}
-          className="rounded-[2rem] border border-white/10 bg-white/[0.055] p-6 shadow-2xl backdrop-blur-2xl"
+          className="rounded-[2rem] border border-white/10 bg-white/[0.055] p-4 shadow-2xl backdrop-blur-2xl sm:p-6"
         >
-          <div className="mb-6">
-            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-blue-300">Distribution</p>
-            <h3 className="mt-2 text-2xl font-black text-white">Task status</h3>
+          <div className="mb-4 sm:mb-6">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-300 sm:text-sm">Distribution</p>
+            <h3 className="mt-1 text-xl font-black text-white sm:mt-2 sm:text-2xl">Task status</h3>
           </div>
-          <div className="h-80">
-            <ResponsiveContainer>
+          <div className="h-64 sm:h-80">
+            <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={data.statusCounts}
                   dataKey="value"
                   nameKey="name"
-                  innerRadius={60}
-                  outerRadius={110}
-                  paddingAngle={6}
+                  innerRadius={40}
+                  outerRadius={80}
+                  paddingAngle={4}
                   startAngle={90}
                   endAngle={-270}
                 >
@@ -224,17 +239,17 @@ export default function Dashboard() {
       </div>
 
       {/* Bottom Section */}
-      <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+      <div className="grid gap-4 sm:gap-6 lg:grid-cols-[0.9fr_1.1fr]">
         {/* Upcoming Calendar */}
         <motion.div
           variants={cardVariants}
-          className="rounded-[2rem] border border-white/10 bg-white/[0.055] p-6 shadow-2xl backdrop-blur-2xl"
+          className="rounded-[2rem] border border-white/10 bg-white/[0.055] p-4 shadow-2xl backdrop-blur-2xl sm:p-6"
         >
-          <div className="mb-6 flex items-center gap-3">
-            <Calendar className="text-blue-400" size={22} />
+          <div className="mb-4 flex items-center gap-2 sm:mb-6 sm:gap-3">
+            <Calendar className="text-blue-400" size={20} />
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">Schedule</p>
-              <h3 className="text-lg font-black text-white">Upcoming tasks</h3>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400 sm:text-sm">Schedule</p>
+              <h3 className="text-lg font-black text-white sm:text-xl">Upcoming tasks</h3>
             </div>
           </div>
           <div className="space-y-3">
@@ -244,13 +259,13 @@ export default function Dashboard() {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.08 }}
-                className="group flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 transition hover:bg-white/[0.08]"
+                className="group flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-3 transition hover:bg-white/[0.08] sm:px-4"
               >
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-bold text-white">{item.title}</p>
                   <p className="text-xs text-slate-500">{item.project}</p>
                 </div>
-                <span className="pill ml-2 flex-shrink-0 bg-cyan-500/10 text-cyan-200">
+                <span className="pill ml-2 flex-shrink-0 bg-cyan-500/10 text-cyan-200 text-xs">
                   {new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                 </span>
               </motion.div>
@@ -261,20 +276,20 @@ export default function Dashboard() {
         {/* Activity Timeline */}
         <motion.div
           variants={cardVariants}
-          className="rounded-[2rem] border border-white/10 bg-white/[0.055] p-6 shadow-2xl backdrop-blur-2xl"
+          className="rounded-[2rem] border border-white/10 bg-white/[0.055] p-4 shadow-2xl backdrop-blur-2xl sm:p-6"
         >
-          <div className="mb-6 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <TrendingUp className="text-fuchsia-400" size={22} />
+          <div className="mb-4 flex items-center justify-between gap-2 sm:mb-6 sm:gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <TrendingUp className="text-fuchsia-400" size={20} />
               <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">Activity</p>
-                <h3 className="text-lg font-black text-white">Team timeline</h3>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400 sm:text-sm">Activity</p>
+                <h3 className="text-lg font-black text-white sm:text-xl">Team timeline</h3>
               </div>
             </div>
-            <span className="pill bg-white/10 text-slate-200">Today</span>
+            <span className="pill bg-white/10 text-slate-200 text-xs">Today</span>
           </div>
-          <div className="relative space-y-5 pl-8">
-            <div className="absolute left-5 top-0 h-full w-px bg-gradient-to-b from-cyan-400/50 via-cyan-400/25 to-transparent" />
+          <div className="relative space-y-4 pl-6 sm:space-y-5 sm:pl-8">
+            <div className="absolute left-3 top-0 h-full w-px bg-gradient-to-b from-cyan-400/50 via-cyan-400/25 to-transparent sm:left-5" />
             {data.recentActivity.slice(0, 5).map((item, index) => (
               <motion.div
                 key={item._id}
@@ -285,9 +300,9 @@ export default function Dashboard() {
               >
                 <motion.div
                   whileHover={{ scale: 1.2 }}
-                  className="absolute left-[-10px] top-2 h-5 w-5 rounded-full bg-gradient-to-br from-cyan-400 to-blue-400 shadow-[0_0_0_8px_rgba(6,182,212,0.1)]"
+                  className="absolute left-[-6px] top-2 h-4 w-4 rounded-full bg-gradient-to-br from-cyan-400 to-blue-400 shadow-[0_0_0_6px_rgba(6,182,212,0.1)] sm:left-[-10px] sm:h-5 sm:w-5"
                 />
-                <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 transition hover:border-cyan-300/30 hover:bg-white/[0.08]">
+                <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3 transition hover:border-cyan-300/30 hover:bg-white/[0.08] sm:p-4">
                   <p className="text-sm font-black text-white">
                     {item.actor?.name || 'System'} <span className="font-semibold text-cyan-300">{item.action}</span>
                   </p>
@@ -305,10 +320,10 @@ export default function Dashboard() {
       {/* Quick Actions */}
       <motion.div
         variants={cardVariants}
-        className="rounded-[2rem] border border-white/10 bg-gradient-to-r from-blue-600/10 via-indigo-600/10 to-fuchsia-600/10 p-6 shadow-2xl backdrop-blur-2xl"
+        className="rounded-[2rem] border border-white/10 bg-gradient-to-r from-blue-600/10 via-indigo-600/10 to-fuchsia-600/10 p-4 shadow-2xl backdrop-blur-2xl sm:p-6"
       >
-        <p className="mb-4 text-sm font-semibold uppercase tracking-[0.24em] text-slate-400">Quick Actions</p>
-        <div className="grid gap-3 md:grid-cols-3">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.24em] text-slate-400 sm:mb-4 sm:text-sm">Quick Actions</p>
+        <div className="grid gap-2 sm:gap-3 sm:grid-cols-3">
           {[
             { label: 'Create Project', icon: FolderKanban },
             { label: 'Add Task', icon: CheckCircle2 },
@@ -320,9 +335,9 @@ export default function Dashboard() {
                 key={idx}
                 whileHover={{ scale: 1.02, y: -2 }}
                 whileTap={{ scale: 0.98 }}
-                className="flex items-center justify-center gap-2 rounded-2xl bg-white/[0.08] px-4 py-3 font-semibold text-white transition hover:bg-white/[0.12]"
+                className="flex items-center justify-center gap-2 rounded-2xl bg-white/[0.08] px-3 py-3 font-semibold text-white transition hover:bg-white/[0.12] text-sm sm:px-4 sm:text-base"
               >
-                <Icon size={18} />
+                <Icon size={16} className="sm:size-18" />
                 {action.label}
               </motion.button>
             );

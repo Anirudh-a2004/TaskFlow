@@ -97,7 +97,7 @@ export default function Team() {
           {isAdmin && (
             <form id="invite-member" onSubmit={inviteMember} className="card p-5">
               <h2 className="mb-4 flex items-center gap-2 text-xl font-black"><UserRoundCog className="text-blue-600" />Invite member</h2>
-              <div className="grid gap-4">
+              <div className="grid gap-3 sm:gap-4">
                 <input className="input" placeholder="Name" value={invite.name} onChange={(e) => setInvite({ ...invite, name: e.target.value })} required />
                 <input className="input" type="email" placeholder="Email" value={invite.email} onChange={(e) => setInvite({ ...invite, email: e.target.value })} required />
                 <input className="input" placeholder="Title" value={invite.title} onChange={(e) => setInvite({ ...invite, title: e.target.value })} />
