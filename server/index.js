@@ -150,11 +150,7 @@ app.use(
    REACT ROUTER FIX FOR EXPRESS 5
 ========================================= */
 
-app.use((req, res, next) => {
-  if (req.path.startsWith('/api')) {
-    return next();
-  }
-
+app.get(/^\/(?!api).*/, (req, res) => {
   res.sendFile(
     path.resolve(
       __dirname,
