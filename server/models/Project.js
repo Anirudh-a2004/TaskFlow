@@ -11,6 +11,9 @@ const projectSchema = new mongoose.Schema(
     priority: { type: String, enum: ['Low', 'Medium', 'High', 'Urgent'], default: 'Medium' },
     color: { type: String, default: '#2563eb' },
     progress: { type: Number, default: 0, min: 0, max: 100 },
+    status: { type: String, enum: ['Active', 'In Progress', 'Completed', 'Archived'], default: 'Active' },
+    completionReadyAt: Date,
+    completedAt: Date,
     archived: { type: Boolean, default: false },
     archivedAt: Date
   },

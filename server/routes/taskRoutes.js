@@ -18,7 +18,7 @@ const upload = multer({ dest: process.env.UPLOAD_DIR || 'uploads' });
 const router = Router();
 
 router.get('/', protect, listTasks);
-router.post('/', protect, authorize('Admin'), [
+router.post('/', protect, [
   body('title').trim().notEmpty().withMessage('Task title is required.'),
   body('project').isMongoId().withMessage('Valid project is required.'),
   validate

@@ -1,314 +1,339 @@
-<<<<<<< HEAD
-# TaskFlow - Modern Team Task Manager
+# TaskFlow – Team Task Manager SaaS
 
-A full-stack SaaS-style Team Task Manager inspired by Notion, Trello, ClickUp, and Jira.
+TaskFlow is a modern full-stack team collaboration and project management platform built to simplify how teams manage projects, tasks, deadlines, and productivity.
 
-## Tech Stack
+The project started as a simple task manager and gradually evolved into a complete SaaS-style productivity platform with authentication, role-based access control, Kanban workflows, dashboards, analytics, notifications, calendar planning, and responsive UI/UX improvements.
 
-- Frontend: React, Tailwind CSS, Framer Motion, Context API
-- Backend: Node.js, Express.js, Socket.IO
-- Database: MongoDB with Mongoose
-- Authentication: JWT + bcrypt password hashing
-- UI: responsive layout, dark mode, charts, Kanban drag-and-drop, toast notifications
+This project was built as part of a full-stack assessment and later expanded with additional enterprise-style workflow features and UI polishing.
 
-## Features
+---
 
-- Signup, login, forgot password, protected routes
-- Role-based access: Admin and Member
-- Admin project/user/task management
-- Member access limited to assigned projects/tasks
-- Project progress, deadlines, priorities, members
-- Kanban board with Todo, In Progress, Review, Completed
-- Task due dates, comments, attachments, priority, subtasks schema
-- Dashboard cards, charts, productivity analytics, calendar, activity feed
-- Real-time notification and chat infrastructure with Socket.IO
-- Search, filtering, pagination-ready APIs
-- Profile management and PDF report export
-- Clean MVC backend folder structure
+# Live Demo
 
-## Setup
+🌐 Live Application: *(Add your Railway deployed link here)*
 
-1. Install dependencies:
-=======
-TaskFlow is a modern full-stack Team Task Manager web application built using the MERN stack. It helps teams manage projects, assign tasks, track progress, collaborate efficiently, and monitor productivity through a beautiful SaaS-style dashboard.
+📂 GitHub Repository: *(Add your GitHub repo link here)*
+
+🎥 Demo Video: *(Add your demo video link here)*
 
 ---
 
 # Features
 
-##  Authentication & Security
+## Authentication & Security
 
-* JWT Authentication
-* Role-Based Access Control (Admin / Member)
+* User Signup & Login
+* JWT-based Authentication
 * Protected Routes
-* Password Hashing with bcrypt
-* Secure REST APIs
-
-## Team & Project Management
-
-* Create and manage projects
-* Add/remove team members
-* Admin dashboard controls
-* Project analytics
-
-## Task Management
-
-* Create/Edit/Delete tasks
-* Assign tasks to members
-* Task priorities
-* Due dates
-* Kanban drag-and-drop board
-* Task status tracking
-
-## Dashboard & Analytics
-
-* Productivity analytics
-* Task statistics
-* Overdue task tracking
-* Project progress monitoring
-* Interactive charts
-
-##  Real-Time Features
-
-* Socket.io notifications
-* Real-time updates
-* Team collaboration features
-
-##  Modern UI/UX
-
-* Responsive design
-* Dark mode
-* Glassmorphism UI
-* Smooth animations
-* SaaS-inspired interface
+* Role-Based Access Control (RBAC)
+* Admin / Project Lead / Member workflows
 
 ---
 
-#  Tech Stack
+## Dashboard
+
+* Productivity overview
+* Task analytics
+* Activity tracking
+* Project insights
+* Completion statistics
+* Interactive charts and metrics
+
+---
+
+## Project Management
+
+* Create and manage projects
+* Assign Project Leads
+* Track project progress
+* Project completion workflow
+* Active / Completed project handling
+* Project detail views with related tasks
+
+---
+
+## Task Management
+
+* Kanban workflow board
+* Drag-and-drop task movement
+* Task priority system
+* Task assignment system
+* Review & completion workflow
+* Permission-based task completion
+
+---
+
+## Team Collaboration
+
+* Invite team members
+* Role management
+* Member assignment workflows
+* Team visibility and collaboration
+
+---
+
+## Notifications System
+
+* Real-time notification updates
+* Unread notification counters
+* Mark as read / mark all as read
+* Interactive notification actions
+
+---
+
+## Calendar & Planner
+
+* Weekly and monthly planning
+* Task scheduling
+* Deadline tracking
+* Responsive planner UI
+
+---
+
+## UI / UX Features
+
+* Premium SaaS-inspired design
+* Dark & Light mode support
+* Glassmorphism UI styling
+* Responsive mobile/tablet layouts
+* Smooth animations and transitions
+* Professional landing page
+
+---
+
+# Tech Stack
 
 ## Frontend
 
-* React.js
+* React
 * Vite
 * Tailwind CSS
+* React Router DOM
 * Framer Motion
 * Recharts
+* Socket.IO Client
 
 ## Backend
 
 * Node.js
 * Express.js
 * MongoDB
-* Socket.io
+* Mongoose
+* JWT Authentication
+* Socket.IO
 
-## Authentication
+## Deployment
 
-* JWT
-* bcryptjs
+* Railway
 
 ---
 
-#  Project Structure
+# Folder Structure
 
-```txt
-TaskFlow/
-│
-├── client/
-├── server/
-├── dist/
-├── uploads/
-└── package.json
+```bash
+client/
+ ├── src/
+ │    ├── components/
+ │    ├── context/
+ │    ├── pages/
+ │    ├── styles/
+ │    └── main.jsx
+
+server/
+ ├── config/
+ ├── middleware/
+ ├── models/
+ ├── routes/
+ ├── controllers/
+ └── index.js
 ```
 
 ---
 
-#  Installation
+# Installation & Setup
 
 ## Clone Repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/taskflow.git
-cd taskflow
+git clone <your-github-repo-link>
+cd PROJCET_TASK
 ```
 
 ---
 
 ## Install Dependencies
->>>>>>> e938ea9dc67a4d816d2cb80b2a9482d055b2883c
 
 ```bash
 npm install
 ```
 
-<<<<<<< HEAD
-2. Create environment file:
-
-```bash
-copy .env.example .env
-```
-
-3. Start MongoDB locally, or update `MONGODB_URI` in `.env`.
-
-Default:
-
-```env
-MONGODB_URI=mongodb://127.0.0.1:27017/team-task-manager
-```
-
-4. Seed dummy sample data:
-
-```bash
-npm run seed
-```
-
-Seed login:
-
-```text
-admin@taskflow.dev
-password123
-```
-
-5. Run the app:
-=======
 ---
 
-## Setup Environment Variables
+## Configure Environment Variables
 
-Create a `.env` file:
+Create a `.env` file in the root directory.
+
+Example:
 
 ```env
+PORT=3000
 MONGO_URI=your_mongodb_connection
 JWT_SECRET=your_secret_key
 CLIENT_URL=http://localhost:5173
-ADMIN_INVITE_CODE=TF-ADMIN-2026
-NODE_ENV=development
 ```
 
 ---
 
-#  Run Development Server
->>>>>>> e938ea9dc67a4d816d2cb80b2a9482d055b2883c
+## Run Development Server
 
 ```bash
 npm run dev
 ```
 
-<<<<<<< HEAD
-Frontend: `http://localhost:5173`  
-Backend API: `http://localhost:3000`
+Frontend:
 
-## API Routes
+```txt
+http://localhost:5173
+```
 
-Auth:
+Backend:
 
-- `POST /api/auth/signup`
-- `POST /api/auth/login`
-- `POST /api/auth/forgot-password`
-- `POST /api/auth/reset-password`
-- `GET /api/auth/me`
-
-Users:
-
-- `GET /api/users`
-- `PATCH /api/users/profile`
-- `PATCH /api/users/:id/role`
-
-Projects:
-
-- `GET /api/projects`
-- `GET /api/projects/:id`
-- `POST /api/projects`
-- `PATCH /api/projects/:id`
-- `DELETE /api/projects/:id`
-
-Tasks:
-
-- `GET /api/tasks`
-- `POST /api/tasks`
-- `PATCH /api/tasks/reorder`
-- `PATCH /api/tasks/:id`
-- `DELETE /api/tasks/:id`
-- `GET /api/tasks/:id/comments`
-- `POST /api/tasks/:id/comments`
-- `POST /api/tasks/:id/attachments`
-
-Dashboard, notifications, chat:
-
-- `GET /api/dashboard`
-- `GET /api/notifications`
-- `PATCH /api/notifications/read`
-- `GET /api/chat/:projectId/messages`
-- `POST /api/chat/:projectId/messages`
-
-## Notes
-
-- The first registered user becomes `Admin`; later signups become `Member`.
-- SMTP variables are optional. Without them, emails are logged to the server console.
-- Uploads are stored in the `uploads/` folder.
-=======
----
-
-#  Production Build
-
-```bash
-npm run build
-npm start
+```txt
+http://localhost:3000
 ```
 
 ---
 
 # Deployment
 
-Deployed on:
+The project is deployed using Railway.
 
-* Railway
-* MongoDB Atlas
+Build process:
+
+```bash
+npm run build
+npm run start
+```
 
 ---
 
-#  Demo Credentials
+# Roles & Permissions
 
 ## Admin
 
-```txt
-Email: admin@taskflow.com
-Password: 123456
-```
+* Create projects
+* Assign Project Leads
+* Manage users
+* Access admin dashboard
+* View analytics
+
+## Project Lead
+
+* Manage assigned projects
+* Assign tasks
+* Invite/manage project members
+* Approve completed tasks/projects
 
 ## Member
 
+* View assigned projects
+* Update task progress
+* Collaborate within projects
+
+---
+
+# Workflow Overview
+
+1. Admin creates a project
+2. Admin assigns a Project Lead
+3. Project Lead manages tasks and members
+4. Team members work on assigned tasks
+5. Tasks move through:
+
 ```txt
-Email: member@taskflow.com
-Password: 123456
+Todo → In Progress → Review → Completed
 ```
 
----
-
-# 📸 Screenshots
-
+6. Project Lead/Admin approves project completion
 
 ---
 
-#  Future Improvements
+# Screenshots
 
-* AI task summaries
-* Calendar integration
-* Email notifications
-* Team chat improvements
-* Export reports as PDF
-* Activity logs
+*(Add screenshots here later)*
+
+Suggested screenshots:
+
+* Landing Page
+* Dashboard
+* Kanban Board
+* Projects Page
+* Calendar Planner
+* Admin Console
+* Mobile View
 
 ---
 
-#  License
+# Challenges Faced
 
-This project is built for educational and portfolio purposes.
+Some of the major challenges while building TaskFlow:
+
+* Managing complex route structures
+* Implementing RBAC workflows
+* Handling responsive Kanban layouts
+* Synchronizing notifications globally
+* Designing consistent dark/light themes
+* Stabilizing sidebar and planner responsiveness
+* Maintaining scalable UI architecture
+
+These challenges helped improve understanding of real-world SaaS application development.
 
 ---
 
-#  Author\
-  Anirudh A
-  anirudhhfhs2017@gmai.com
+# Future Improvements
 
-Developed by Anirudh
->>>>>>> e938ea9dc67a4d816d2cb80b2a9482d055b2883c
+Possible future upgrades:
+
+* Google OAuth Authentication
+* Email Verification
+* Real-time team chat
+* File attachments
+* AI productivity insights
+* Advanced analytics
+* Multi-workspace support
+* Project templates
+
+---
+
+# Author
+
+Anirudh A
+
+📧 [anirudhhfhs2017@gmail.com](mailto:anirudhhfhs2017@gmail.com)
+
+Final Year CSE (IoT & CSBT)
+
+Passionate about:
+
+* Full-Stack Development
+* SaaS Applications
+* UI/UX Engineering
+* Cyber Security
+* Scalable Web Systems
+
+---
+
+# Final Note
+
+TaskFlow started as an assessment project but gradually evolved into a complete SaaS-style productivity platform.
+
+This project helped strengthen practical understanding of:
+
+* Full-stack architecture
+* Role-based systems
+* Real-world UI/UX workflows
+* API integration
+* Deployment pipelines
+* Responsive SaaS development
+
+The goal was not just to build features, but to create an application that feels professional, scalable, and realistic.

@@ -32,7 +32,7 @@ export const listTasks = asyncHandler(async (req, res) => {
 
   const [items, total] = await Promise.all([
     Task.find(filter)
-      .populate('project', 'name color')
+      .populate('project', 'name color manager')
       .populate('assignee createdBy', 'name email avatar')
       .sort({ order: 1, dueDate: 1, createdAt: -1 })
       .skip(skip)
@@ -45,6 +45,10 @@ export const listTasks = asyncHandler(async (req, res) => {
 export const createTask = asyncHandler(async (req, res) => {
   const project = await Project.findById(req.body.project);
   if (!project) throw notFound('Project');
+  const isLead = project.manager && project.manager.equals(req.user._id);
+  if (req.user.role !== 'Admin' && !isLead) {
+    throw new ApiError(403, 'You do not have permission to manage tasks for this project.');
+  }
   if (req.body.assignee && !project.members.some((id) => id.toString() === req.body.assignee)) {
     throw new ApiError(400, 'Assignee must be a project member.');
   }
@@ -62,7 +66,11 @@ export const createTask = asyncHandler(async (req, res) => {
     });
     req.io?.to(task.assignee.toString()).emit('notification', notification);
   }
-  res.status(201).json({ task: await task.populate('project assignee createdBy', 'name email avatar color') });
+  res.status(201).json({ task: await task.populate([
+    { path: 'project', select: 'name color progress status archived deadline priority completedAt' },
+    { path: 'assignee', select: 'name email avatar' },
+    { path: 'createdBy', select: 'name email avatar' }
+  ]) });
 });
 
 export const updateTask = asyncHandler(async (req, res) => {
@@ -76,7 +84,11 @@ export const updateTask = asyncHandler(async (req, res) => {
   await task.save();
   await recalcProjectProgress(task.project);
   await Activity.create({ actor: req.user._id, project: task.project, task: task._id, action: 'task.updated', detail: task.title });
-  res.json({ task: await task.populate('project assignee createdBy', 'name email avatar color') });
+  res.json({ task: await task.populate([
+    { path: 'project', select: 'name color progress status archived deadline priority completedAt' },
+    { path: 'assignee', select: 'name email avatar' },
+    { path: 'createdBy', select: 'name email avatar' }
+  ]) });
 });
 
 export const reorderTasks = asyncHandler(async (req, res) => {

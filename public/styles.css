@@ -668,6 +668,21 @@ h3 {
   color: var(--warn);
 }
 
+.calendar-day-card {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.calendar-day-card .calendar-day-badges {
+  min-width: 0;
+}
+
+.calendar-day-card .calendar-day-badges .pill {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .task-actions {
   display: flex;
   flex-wrap: wrap;

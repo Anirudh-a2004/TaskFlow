@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../utils/api.js';
 
 const AppContext = createContext(null);
@@ -13,16 +13,32 @@ export function AppProvider({ children }) {
   const [dark, setDark] = useState(getStoredTheme);
   const [search, setSearch] = useState('');
   const [notifications, setNotifications] = useState(null);
+  const refreshInFlight = useRef(null);
+  const lastRefreshAt = useRef(0);
 
   const toggleDark = () => {
     setDark((current) => !current);
   };
 
-  const loadNotifications = async () => {
-    const data = await api('/notifications');
-    const next = data.items || data.notifications || [];
-    setNotifications(next);
-    return next;
+  const loadNotifications = async ({ force = false } = {}) => {
+    const now = Date.now();
+    if (!force && refreshInFlight.current) return refreshInFlight.current;
+    if (!force && now - lastRefreshAt.current < 7_500) return notifications || [];
+
+    const run = (async () => {
+      try {
+        const data = await api('/notifications');
+        const next = data.items || data.notifications || [];
+        setNotifications(next);
+        lastRefreshAt.current = Date.now();
+        return next;
+      } finally {
+        refreshInFlight.current = null;
+      }
+    })();
+
+    refreshInFlight.current = run;
+    return run;
   };
 
   const markNotificationsRead = async (ids) => {
@@ -33,6 +49,7 @@ export function AppProvider({ children }) {
       targetIds.includes(item._id) ? { ...item, read: true } : item
     )) || current);
     await api('/notifications/read', { method: 'PATCH', body: JSON.stringify({ ids: targetIds }) });
+    loadNotifications({ force: true }).catch(() => {});
   };
 
   useEffect(() => {
@@ -44,6 +61,34 @@ export function AppProvider({ children }) {
     root.style.colorScheme = theme;
     localStorage.setItem(THEME_STORAGE_KEY, theme);
   }, [dark]);
+
+  useEffect(() => {
+    let timer = null;
+
+    const refreshIfVisible = () => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+      loadNotifications().catch(() => {});
+    };
+
+    const onVisibility = () => refreshIfVisible();
+    const onFocus = () => loadNotifications({ force: true }).catch(() => {});
+
+    refreshIfVisible();
+    timer = window.setInterval(refreshIfVisible, 25_000);
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisibility);
+
+    return () => {
+      if (timer) window.clearInterval(timer);
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, []);
+
+  const unreadNotifications = useMemo(
+    () => notifications?.filter((item) => !item.read).length || 0,
+    [notifications]
+  );
 
   return (
     <AppContext.Provider
@@ -57,7 +102,7 @@ export function AppProvider({ children }) {
         setNotifications,
         loadNotifications,
         markNotificationsRead,
-        unreadNotifications: notifications?.filter((item) => !item.read).length || 0
+        unreadNotifications
       }}
     >
       {children}

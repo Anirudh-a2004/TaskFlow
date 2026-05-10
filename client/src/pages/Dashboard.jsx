@@ -9,7 +9,8 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useApp } from '../context/AppContext.jsx';
 
 const cards = [
-  { key: 'projects', label: 'Active Projects', icon: FolderKanban, gradient: 'from-blue-500 to-cyan-500', trend: '+2.5%' },
+  { key: 'projects', label: 'Projects', icon: FolderKanban, gradient: 'from-blue-500 to-cyan-500', trend: '+2.5%' },
+  { key: 'completedProjects', label: 'Completed Projects', icon: TrendingUp, gradient: 'from-violet-500 to-fuchsia-500', trend: '+6.4%' },
   { key: 'completed', label: 'Completed Tasks', icon: CheckCircle2, gradient: 'from-emerald-500 to-teal-500', trend: '+12.3%' },
   { key: 'pending', label: 'Pending Work', icon: Clock, gradient: 'from-amber-500 to-orange-500', trend: '-3.1%' },
   { key: 'overdue', label: 'Overdue Items', icon: TriangleAlert, gradient: 'from-rose-500 to-red-500', trend: '-5.2%' }
@@ -287,7 +288,7 @@ export default function Dashboard() {
       </motion.div>
 
       {/* Stats Cards */}
-      <motion.div variants={containerVariants} className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
+      <motion.div variants={containerVariants} className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-5">
         {cards.map(({ key, label, icon: Icon, gradient, trend }, index) => (
           <motion.article key={key} variants={cardVariants} className="group card overflow-hidden p-4 sm:p-6">
             <div className="flex items-start justify-between gap-2 sm:gap-3">

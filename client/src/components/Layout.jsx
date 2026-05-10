@@ -3,7 +3,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useApp } from '../context/AppContext.jsx';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 const nav = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -22,6 +22,7 @@ export default function Layout() {
   const { dark, toggleDark, search, setSearch, unreadNotifications, loadNotifications } = useApp();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [searchDraft, setSearchDraft] = useState(search);
   const ThemeIcon = dark ? Sun : Moon;
 
   useEffect(() => {
@@ -39,7 +40,33 @@ export default function Layout() {
     loadNotifications().catch(() => {});
   }, []);
 
+  useEffect(() => {
+    setSearchDraft(search);
+  }, [search]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      if (searchDraft === search) return;
+      setSearch(searchDraft);
+    }, 220);
+
+    return () => window.clearTimeout(timer);
+  }, [searchDraft]);
+
+  useEffect(() => {
+    // Preserve intent across sections but avoid "sticky" surprise filters when navigating.
+    setSearchDraft('');
+    setSearch('');
+  }, [location.pathname]);
+
   const notificationBadge = unreadNotifications > 99 ? '99+' : unreadNotifications;
+  const searchPlaceholder = useMemo(() => {
+    if (location.pathname.includes('/dashboard/tasks')) return 'Search tasks…';
+    if (location.pathname.includes('/dashboard/projects')) return 'Search projects…';
+    if (location.pathname.includes('/dashboard/team')) return 'Search people…';
+    if (location.pathname.includes('/dashboard/admin')) return 'Search admin records…';
+    return 'Search projects, tasks, people…';
+  }, [location.pathname]);
 
   return (
     <div className="app-shell min-h-screen overflow-hidden bg-slate-950 text-slate-50">
@@ -87,6 +114,7 @@ export default function Layout() {
                 <motion.div key={item.to} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                   <NavLink
                     to={item.to}
+                    end={item.to === '/dashboard'}
                     className={({ isActive }) =>
                       `group relative flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition-all duration-300 ${
                         isActive
@@ -236,7 +264,7 @@ export default function Layout() {
         </motion.aside>
       </AnimatePresence>
 
-      <main className={`transition-all duration-300 ${sidebarCollapsed ? 'lg:pl-20' : 'lg:pl-72'}`}>
+      <main className={`min-w-0 transition-all duration-300 ${sidebarCollapsed ? 'lg:pl-20' : 'lg:pl-72'}`}>
         <header className="sticky top-0 z-20 border-b border-white/10 bg-slate-950/80 px-4 py-4 backdrop-blur-2xl sm:px-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-center gap-3">
@@ -252,11 +280,29 @@ export default function Layout() {
                 <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                 <motion.input
                   whileFocus={{ scale: 1.01 }}
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search projects, tasks, people..."
-                  className="input pl-11"
+                  value={searchDraft}
+                  onChange={(event) => setSearchDraft(event.target.value)}
+                  placeholder={searchPlaceholder}
+                  className="input pl-11 pr-10"
+                  aria-label="Global search"
                 />
+                <AnimatePresence>
+                  {!!searchDraft && (
+                    <motion.button
+                      type="button"
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.9 }}
+                      whileHover={{ scale: 1.06 }}
+                      whileTap={{ scale: 0.94 }}
+                      onClick={() => setSearchDraft('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 grid h-8 w-8 place-items-center rounded-xl border border-white/10 bg-white/5 text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
+                      aria-label="Clear search"
+                    >
+                      <X size={16} />
+                    </motion.button>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
 
@@ -319,7 +365,7 @@ export default function Layout() {
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.28 }}
-          className="p-4 pb-28 sm:p-6 lg:pb-6"
+          className="min-w-0 p-4 pb-28 sm:p-6 lg:pb-6"
         >
           <Outlet />
         </motion.div>
@@ -390,6 +436,7 @@ export default function Layout() {
                     >
                       <NavLink
                         to={item.to}
+                        end={item.to === '/dashboard'}
                         onClick={() => setMobileMenuOpen(false)}
                         className={({ isActive }) =>
                           `group relative flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition-all duration-300 ${
@@ -493,6 +540,7 @@ export default function Layout() {
             >
               <NavLink
                 to={item.to}
+                end={item.to === '/dashboard'}
                 className={({ isActive }) =>
                   `relative grid place-items-center gap-1 rounded-xl px-2 py-3 text-[11px] font-semibold transition-all duration-300 ${
                     isActive

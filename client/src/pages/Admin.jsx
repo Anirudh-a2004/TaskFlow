@@ -13,6 +13,7 @@ const tabs = ['Overview', 'Users', 'Projects', 'Tasks', 'Audit Logs', 'Announcem
 export default function Admin() {
   const [active, setActive] = useState('Overview');
   const [search, setSearch] = useState('');
+  const [auditQuery, setAuditQuery] = useState('');
   const [overview, setOverview] = useState(null);
   const [users, setUsers] = useState([]);
   const [projects, setProjects] = useState([]);
@@ -40,6 +41,27 @@ export default function Admin() {
     load();
   }, [search]);
 
+  const filteredLogs = useMemo(() => {
+    const q = auditQuery.trim().toLowerCase();
+    if (!q) return logs;
+    return logs.filter((log) => {
+      const actor = log.actor?.name || log.actor?.email || 'system';
+      const haystack = [
+        actor,
+        log.action,
+        log.detail,
+        log.severity,
+        log.actor?._id,
+        log._id,
+        log.createdAt ? new Date(log.createdAt).toLocaleString() : ''
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [auditQuery, logs]);
+
   const userColumns = useMemo(() => [
     { key: 'name', label: 'User', render: (user) => <div><p className="font-black">{user.name}</p><p className="text-xs text-slate-500">{user.email}</p></div> },
     { key: 'role', label: 'Role', render: (user) => <Badge>{user.role}</Badge> },
@@ -58,7 +80,12 @@ export default function Admin() {
   const projectColumns = [
     { key: 'name', label: 'Project', render: (project) => <div><p className="font-black">{project.name}</p><p className="text-xs text-slate-500">{project.description}</p></div> },
     { key: 'priority', label: 'Priority', render: (project) => <Badge>{project.priority}</Badge> },
-    { key: 'manager', label: 'Manager', render: (project) => project.manager?.name || 'Unassigned' },
+    { key: 'manager', label: 'Project lead', render: (project) => project.manager?.name ? <span className="pill bg-amber-400/10 text-amber-100">{project.manager.name}</span> : 'Unassigned' },
+    { key: 'status', label: 'Status', render: (project) => (
+      <span className={`pill ${project.status === 'Completed' ? 'bg-emerald-400/10 text-emerald-200' : (project.progress === 100 ? 'bg-cyan-400/10 text-cyan-200' : 'bg-white/10 text-slate-200')}`}>
+        {project.archived ? 'Archived' : (project.status === 'Completed' ? 'Completed' : (project.progress === 100 ? 'Ready for approval' : (project.status || 'Active')))}
+      </span>
+    ) },
     { key: 'progress', label: 'Progress', render: (project) => <div className="w-36"><div className="h-2 rounded-full bg-white/10"><div className="h-2 rounded-full bg-gradient-to-r from-blue-500 to-fuchsia-500" style={{ width: `${project.progress || 0}%` }} /></div><p className="mt-1 text-xs font-bold text-slate-500">{project.progress || 0}%</p></div> },
     { key: 'archived', label: 'State', render: (project) => <span className="pill bg-white/10 text-slate-300">{project.archived ? 'Archived' : 'Active'}</span> },
     { key: 'actions', label: 'Actions', render: (project) => <button className="btn-secondary !px-3 !py-2" onClick={() => archiveProject(project)}>{project.archived ? <RotateCcw size={14} /> : <Archive size={14} />}{project.archived ? 'Restore' : 'Archive'}</button> }
@@ -143,7 +170,12 @@ export default function Admin() {
       {active !== 'Overview' && (
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-          <input value={search} onChange={(event) => setSearch(event.target.value)} className="input pl-11" placeholder="Search admin records..." />
+          <input
+            value={active === 'Audit Logs' ? auditQuery : search}
+            onChange={(event) => (active === 'Audit Logs' ? setAuditQuery(event.target.value) : setSearch(event.target.value))}
+            className="input pl-11"
+            placeholder={active === 'Audit Logs' ? 'Search audit logs by actor, action, detail, severity…' : 'Search admin records…'}
+          />
         </div>
       )}
 
@@ -170,7 +202,7 @@ export default function Admin() {
         { key: 'action', label: 'Action' },
         { key: 'detail', label: 'Detail' },
         { key: 'severity', label: 'Severity', render: (log) => <span className={`pill ${log.severity === 'warning' ? 'bg-amber-400/10 text-amber-200' : 'bg-blue-400/10 text-blue-200'}`}>{log.severity || 'info'}</span> }
-      ]} rows={logs} />}
+      ]} rows={filteredLogs} />}
       {active === 'Announcements' && (
         <form onSubmit={sendAnnouncement} className="premium-card grid gap-4 p-6">
           <h2 className="flex items-center gap-2 text-xl font-black"><BellPlus className="text-cyan-300" />Organization-wide notice</h2>
@@ -188,6 +220,7 @@ function AdminOverview({ overview }) {
   const cards = [
     ['Total users', overview.cards.totalUsers, Users],
     ['Active projects', overview.cards.activeProjects, SlidersHorizontal],
+    ['Completed projects', overview.cards.completedProjects ?? 0, ShieldAlert],
     ['Completed tasks', overview.cards.completedTasks, ShieldAlert],
     ['Overdue tasks', overview.cards.overdueTasks, ShieldAlert],
     ['Blocked users', overview.cards.blockedUsers, LockKeyhole]
@@ -200,17 +233,31 @@ function AdminOverview({ overview }) {
     tooltipBorder: dark ? 'rgba(148,163,184,0.18)' : 'rgba(148,163,184,0.32)',
     tooltipShadow: dark ? '0 20px 60px rgba(0,0,0,0.3)' : '0 18px 48px rgba(15,23,42,0.16)'
   };
-  const tooltipStyle = {
-    backgroundColor: chartTheme.tooltipBg,
-    borderRadius: '14px',
-    border: `1px solid ${chartTheme.tooltipBorder}`,
-    boxShadow: chartTheme.tooltipShadow,
-    color: chartTheme.tooltipText
-  };
+  function PremiumAdminTooltip({ active, payload, label }) {
+    if (!active || !payload?.length) return null;
+    const title = label || payload[0]?.name || 'Metric';
+
+    return (
+      <div className="chart-tooltip rounded-2xl border border-white/10 bg-slate-950/85 px-4 py-3 text-xs shadow-2xl shadow-black/30 backdrop-blur-2xl dark:bg-slate-950/85">
+        <p className="mb-2 font-black text-white">{title}</p>
+        <div className="grid gap-2">
+          {payload.map((entry) => (
+            <div key={entry.dataKey || entry.name} className="flex items-center justify-between gap-5">
+              <span className="flex items-center gap-2 font-semibold capitalize text-slate-400">
+                <span className="h-2.5 w-2.5 rounded-full" style={{ background: entry.color }} />
+                {entry.dataKey || entry.name}
+              </span>
+              <span className="font-black text-white">{entry.value}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="grid gap-6">
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
         {cards.map(([label, value, Icon], index) => (
           <motion.article key={label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.03 }} className="premium-card p-5">
             <div className="mb-4 grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-blue-500/25 to-fuchsia-500/25 text-cyan-200 ring-1 ring-white/10"><Icon size={20} /></div>
@@ -228,7 +275,7 @@ function AdminOverview({ overview }) {
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chartTheme.grid} />
                 <XAxis dataKey="day" stroke={chartTheme.axis} />
                 <YAxis allowDecimals={false} stroke={chartTheme.axis} />
-                <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: chartTheme.tooltipText }} />
+                <Tooltip content={<PremiumAdminTooltip />} cursor={{ fill: dark ? 'rgba(255,255,255,0.04)' : 'rgba(59,130,246,0.08)' }} />
                 <Bar dataKey="completed" fill="#22d3ee" radius={[8, 8, 0, 0]} />
                 <Bar dataKey="overdue" fill="#fb7185" radius={[8, 8, 0, 0]} />
               </BarChart>
@@ -243,7 +290,7 @@ function AdminOverview({ overview }) {
                 <Pie data={overview.taskStatus} dataKey="value" nameKey="name" innerRadius={60} outerRadius={102} paddingAngle={6}>
                   {['#64748b', '#22d3ee', '#a78bfa', '#34d399'].map((color) => <Cell key={color} fill={color} />)}
                 </Pie>
-                <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: chartTheme.tooltipText }} />
+                <Tooltip content={<PremiumAdminTooltip />} />
               </PieChart>
             </ResponsiveContainer>
           </div>

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Bell, CheckCheck, MessageSquare, Sparkles, Timer } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import Skeleton, { EmptyState, SkeletonStack } from '../components/Skeleton.jsx';
 import { useApp } from '../context/AppContext.jsx';
 
@@ -14,8 +15,10 @@ const iconMap = {
 const filters = ['All', 'Unread', 'System'];
 
 export default function Notifications() {
+  const navigate = useNavigate();
   const { notifications, loadNotifications, markNotificationsRead } = useApp();
   const [filter, setFilter] = useState('All');
+  const [openingId, setOpeningId] = useState(null);
 
   useEffect(() => {
     loadNotifications().catch(() => {});
@@ -23,6 +26,28 @@ export default function Notifications() {
 
   const items = notifications;
   const markAllRead = () => markNotificationsRead();
+
+  const resolveLink = (link) => {
+    if (!link) return null;
+    if (link.startsWith('/dashboard')) return link;
+    const taskMatch = link.match(/^\/tasks\/([a-f0-9]{24})/i);
+    if (taskMatch) return `/dashboard/tasks?task=${taskMatch[1]}`;
+    const projectMatch = link.match(/^\/projects\/([a-f0-9]{24})/i);
+    if (projectMatch) return `/dashboard/projects?project=${projectMatch[1]}`;
+    if (link.startsWith('/notifications')) return '/dashboard/notifications';
+    return `/dashboard${link.startsWith('/') ? '' : '/'}${link}`;
+  };
+
+  const openItem = async (item) => {
+    if (!item?._id) return;
+    setOpeningId(item._id);
+    if (!item.read) {
+      await markNotificationsRead([item._id]);
+    }
+    const next = resolveLink(item.link);
+    if (next) navigate(next);
+    window.setTimeout(() => setOpeningId(null), 350);
+  };
 
   const visibleItems = useMemo(() => {
     if (!items) return [];
@@ -73,13 +98,31 @@ export default function Notifications() {
 
       <section className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-center">
         <div className="grid grid-cols-2 gap-3 sm:flex">
-          <div className="card p-4">
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Unread</p>
-            <p className="mt-2 text-2xl font-black text-white">{unreadCount}</p>
+          <div className="card group relative overflow-hidden p-4 sm:p-5">
+            <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-blue-500/10 opacity-0 transition duration-300 group-hover:opacity-100" />
+            <div className="relative flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Unread</p>
+                <p className="mt-2 text-3xl font-black tracking-tight text-white">{unreadCount}</p>
+                <p className="mt-1 text-xs font-semibold text-slate-500">Needs attention</p>
+              </div>
+              <div className="grid h-11 w-11 place-items-center rounded-2xl bg-cyan-500/10 text-cyan-200 ring-1 ring-white/10">
+                <Bell size={18} />
+              </div>
+            </div>
           </div>
-          <div className="card p-4">
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Total</p>
-            <p className="mt-2 text-2xl font-black text-white">{items.length}</p>
+          <div className="card group relative overflow-hidden p-4 sm:p-5">
+            <div className="absolute inset-0 bg-gradient-to-br from-fuchsia-500/10 via-transparent to-indigo-500/10 opacity-0 transition duration-300 group-hover:opacity-100" />
+            <div className="relative flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Total</p>
+                <p className="mt-2 text-3xl font-black tracking-tight text-white">{items.length}</p>
+                <p className="mt-1 text-xs font-semibold text-slate-500">All activity</p>
+              </div>
+              <div className="grid h-11 w-11 place-items-center rounded-2xl bg-fuchsia-500/10 text-fuchsia-200 ring-1 ring-white/10">
+                <Sparkles size={18} />
+              </div>
+            </div>
           </div>
         </div>
         <div className="flex rounded-2xl border border-white/10 bg-white/[0.055] p-1 backdrop-blur-xl">
@@ -109,15 +152,30 @@ export default function Notifications() {
             <div className="absolute left-7 top-4 hidden h-[calc(100%-2rem)] w-px bg-gradient-to-b from-cyan-400/50 via-blue-400/20 to-transparent sm:block" />
             {visibleItems.map((item, index) => {
               const Icon = iconMap[item.type] || Bell;
+              const isUnread = !item.read;
               return (
                 <motion.article
                   key={item._id}
                   initial={{ opacity: 0, x: -16 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: index * 0.045 }}
-                  className="group relative rounded-[1.5rem] border border-white/10 bg-white/[0.045] p-4 transition duration-300 hover:-translate-y-0.5 hover:border-cyan-300/30 hover:bg-white/[0.08] sm:p-5"
+                  className={`group relative rounded-[1.5rem] border p-4 transition duration-300 sm:p-5 ${
+                    isUnread
+                      ? 'border-cyan-300/25 bg-white/[0.07] shadow-lg shadow-cyan-500/5'
+                      : 'border-white/10 bg-white/[0.045]'
+                  } hover:-translate-y-0.5 hover:border-cyan-300/30 hover:bg-white/[0.085]`}
                 >
-                  <div className="flex gap-4">
+                  <button
+                    type="button"
+                    onClick={() => openItem(item)}
+                    className="w-full text-left"
+                    aria-label={`Open notification: ${item.title}`}
+                  >
+                    <motion.div
+                      whileTap={{ scale: 0.99 }}
+                      animate={openingId === item._id ? { scale: 0.99 } : { scale: 1 }}
+                      className="flex gap-4"
+                    >
                     <div className="grid h-12 w-12 flex-shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-blue-500/25 to-fuchsia-500/25 text-cyan-200 ring-1 ring-white/10">
                       <Icon size={20} />
                     </div>
@@ -125,18 +183,25 @@ export default function Notifications() {
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <h2 className="truncate font-black text-white">{item.title}</h2>
-                          <p className="mt-1 text-sm font-semibold leading-6 text-slate-400">{item.message}</p>
+                          <p className={`mt-1 text-sm font-semibold leading-6 ${isUnread ? 'text-slate-200' : 'text-slate-400'}`}>{item.message}</p>
                         </div>
-                        {!item.read && <span className="mt-2 h-2.5 w-2.5 flex-shrink-0 rounded-full bg-cyan-300 shadow-[0_0_18px_rgba(103,232,249,.8)]" />}
+                        {isUnread && (
+                          <motion.span
+                            initial={{ scale: 0.7, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            className="mt-2 h-2.5 w-2.5 flex-shrink-0 rounded-full bg-cyan-300 shadow-[0_0_18px_rgba(103,232,249,.8)]"
+                          />
+                        )}
                       </div>
                       <div className="mt-4 flex flex-wrap items-center gap-2">
-                        <span className="pill bg-white/10 text-slate-300">{item.type || 'update'}</span>
+                        <span className={`pill ${isUnread ? 'bg-cyan-500/10 text-cyan-200' : 'bg-white/10 text-slate-300'}`}>{item.type || 'update'}</span>
                         <span className="text-xs font-bold uppercase tracking-[0.18em] text-slate-600">
                           {new Date(item.createdAt).toLocaleString()}
                         </span>
                       </div>
                     </div>
-                  </div>
+                    </motion.div>
+                  </button>
                 </motion.article>
               );
             })}

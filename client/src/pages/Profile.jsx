@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { BellRing, Download, FileUp, Mail, MessageSquareText, Save, ShieldCheck, UserCircle } from 'lucide-react';
+import { BarChart3, BellRing, CheckCircle2, Download, FileUp, FolderKanban, Mail, MessageSquareText, Save, ShieldCheck, Target, UserCircle, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext.jsx';
 import { api } from '../utils/api.js';
+import Modal from '../components/Modal.jsx';
 
 const featureCards = [
   { title: 'Team chat', text: 'Project chat endpoints and Socket.IO events are ready for live collaboration.', icon: MessageSquareText, tone: 'text-cyan-300 bg-cyan-500/10' },
@@ -14,6 +15,55 @@ const featureCards = [
 export default function Profile() {
   const { user } = useAuth();
   const [form, setForm] = useState({ name: user?.name || '', title: user?.title || '', department: user?.department || '' });
+  const [myTasks, setMyTasks] = useState([]);
+  const [myProjects, setMyProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showAllCompleted, setShowAllCompleted] = useState(false);
+  const [showAllLedProjects, setShowAllLedProjects] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const [tasksRes, projectsRes] = await Promise.all([
+          api('/tasks?assignee=me&limit=200'),
+          api('/projects?limit=200')
+        ]);
+        if (cancelled) return;
+        setMyTasks(tasksRes.items || []);
+        setMyProjects(projectsRes.items || []);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const stats = useMemo(() => {
+    const completedTasks = myTasks.filter((t) => t.status === 'Completed').length;
+    const overdueTasks = myTasks.filter((t) => t.dueDate && new Date(t.dueDate) < new Date() && t.status !== 'Completed').length;
+    const activeTasks = myTasks.length - completedTasks;
+    const assignedProjects = myProjects.filter((p) => (p.members || []).some((m) => (m?._id || m) === user?._id));
+    const leadProjects = myProjects.filter((p) => (p.manager?._id || p.manager) === user?._id);
+    const completedProjects = assignedProjects.filter((p) => p.status === 'Completed').length;
+    const readyApprovals = leadProjects.filter((p) => (p.progress || 0) === 100 && p.status !== 'Completed' && !p.archived).length;
+
+    return {
+      completedTasks,
+      overdueTasks,
+      activeTasks,
+      assignedProjectsCount: assignedProjects.length,
+      completedProjects,
+      leadProjectsCount: leadProjects.length,
+      readyApprovals
+    };
+  }, [myTasks, myProjects, user?._id]);
+
+  const completedTasks = useMemo(() => myTasks.filter((t) => t.status === 'Completed'), [myTasks]);
+  const ledProjects = useMemo(() => myProjects.filter((p) => (p.manager?._id || p.manager) === user?._id), [myProjects, user?._id]);
 
   const save = async (event) => {
     event.preventDefault();
@@ -84,10 +134,46 @@ startxref
               {form.department || 'Product'} department
             </p>
           </div>
+          <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-4">
+            <p className="flex items-center gap-2 text-sm font-bold text-slate-300">
+              <Users size={16} className="text-fuchsia-300" />
+              {form.title || 'Contributor'} title
+            </p>
+          </div>
         </div>
       </motion.aside>
 
       <div className="grid gap-6">
+        <motion.section
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.03 }}
+          className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
+        >
+          {[
+            { label: 'Assigned projects', value: stats.assignedProjectsCount, icon: FolderKanban, tone: 'from-blue-500 to-cyan-500' },
+            { label: 'Completed tasks', value: stats.completedTasks, icon: CheckCircle2, tone: 'from-emerald-500 to-teal-500' },
+            { label: 'Active tasks', value: stats.activeTasks, icon: Target, tone: 'from-violet-500 to-fuchsia-500' },
+            { label: 'Overdue', value: stats.overdueTasks, icon: BarChart3, tone: 'from-rose-500 to-red-500' }
+          ].map((card) => {
+            const Icon = card.icon;
+            return (
+              <article key={card.label} className="card p-5">
+                <div className={`mb-4 grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br ${card.tone} text-white shadow-lg shadow-black/10`}>
+                  <Icon size={18} />
+                </div>
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-500">{card.label}</p>
+                <p className="mt-2 text-3xl font-black text-white">{loading ? '—' : card.value}</p>
+                {card.label === 'Assigned projects' && stats.leadProjectsCount > 0 && (
+                  <p className="mt-2 text-xs font-semibold text-slate-500">
+                    Leading {stats.leadProjectsCount} project{stats.leadProjectsCount === 1 ? '' : 's'}{stats.readyApprovals ? ` · ${stats.readyApprovals} ready approvals` : ''}
+                  </p>
+                )}
+              </article>
+            );
+          })}
+        </motion.section>
+
         <motion.form
           onSubmit={save}
           initial={{ opacity: 0, y: 18 }}
@@ -114,6 +200,85 @@ startxref
             Save profile
           </button>
         </motion.form>
+
+        <motion.section
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="grid gap-4 lg:grid-cols-2"
+        >
+          <div className="card p-5 sm:p-6">
+            <div className="mb-4 flex items-center gap-3">
+              <div className="grid h-11 w-11 place-items-center rounded-2xl bg-emerald-500/12 text-emerald-200">
+                <CheckCircle2 size={20} />
+              </div>
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Productivity</p>
+                <h2 className="text-xl font-black text-white">My completed tasks</h2>
+              </div>
+            </div>
+            <div className="grid gap-3">
+              {completedTasks.slice(0, 6).length ? (
+                completedTasks.slice(0, 6).map((task) => (
+                    <div key={task._id} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                      <p className="truncate font-black text-white">{task.title}</p>
+                      <p className="mt-1 truncate text-xs font-semibold text-slate-500">{task.project?.name || 'No project'}</p>
+                    </div>
+                  ))
+              ) : (
+                <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-6 text-sm font-semibold text-slate-500">
+                  {loading ? 'Loading tasks…' : 'No completed tasks yet.'}
+                </div>
+              )}
+            </div>
+            {completedTasks.length > 6 && (
+              <button type="button" onClick={() => setShowAllCompleted(true)} className="btn-secondary mt-4 w-full justify-center !py-2.5">
+                See more
+              </button>
+            )}
+          </div>
+
+          <div className="card p-5 sm:p-6">
+            <div className="mb-4 flex items-center gap-3">
+              <div className="grid h-11 w-11 place-items-center rounded-2xl bg-amber-500/12 text-amber-200">
+                <FolderKanban size={20} />
+              </div>
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Ownership</p>
+                <h2 className="text-xl font-black text-white">Projects I lead</h2>
+              </div>
+            </div>
+            <div className="grid gap-3">
+              {ledProjects.slice(0, 6).length ? (
+                ledProjects.slice(0, 6).map((project) => (
+                    <div key={project._id} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate font-black text-white">{project.name}</p>
+                          <p className="mt-1 text-xs font-semibold text-slate-500">
+                            {project.status === 'Completed' ? 'Completed' : ((project.progress || 0) === 100 ? 'Ready for approval' : (project.status || 'Active'))}
+                          </p>
+                        </div>
+                        <span className="pill bg-white/10 text-slate-200 text-xs">{project.progress || 0}%</span>
+                      </div>
+                      <div className="mt-3 h-2 rounded-full bg-white/10">
+                        <div className="h-2 rounded-full bg-gradient-to-r from-amber-400 to-fuchsia-400" style={{ width: `${project.progress || 0}%` }} />
+                      </div>
+                    </div>
+                  ))
+              ) : (
+                <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-6 text-sm font-semibold text-slate-500">
+                  {loading ? 'Loading projects…' : 'No lead projects yet.'}
+                </div>
+              )}
+            </div>
+            {ledProjects.length > 6 && (
+              <button type="button" onClick={() => setShowAllLedProjects(true)} className="btn-secondary mt-4 w-full justify-center !py-2.5">
+                See more
+              </button>
+            )}
+          </div>
+        </motion.section>
 
         <motion.section
           initial={{ opacity: 0, y: 18 }}
@@ -151,6 +316,61 @@ startxref
           </button>
         </motion.section>
       </div>
+
+      <Modal
+        open={showAllCompleted}
+        onClose={() => setShowAllCompleted(false)}
+        title="Completed tasks"
+        description="A full list of tasks you've completed."
+        size="lg"
+      >
+        <div className="grid max-h-[70vh] gap-3 overflow-auto pr-1 [scrollbar-width:thin]">
+          {completedTasks.map((task) => (
+            <div key={task._id} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+              <p className="font-black text-white">{task.title}</p>
+              <p className="mt-1 text-xs font-semibold text-slate-500">{task.project?.name || 'No project'}</p>
+              {task.dueDate && <p className="mt-2 text-xs font-semibold text-slate-500">Due: {new Date(task.dueDate).toLocaleDateString()}</p>}
+            </div>
+          ))}
+          {completedTasks.length === 0 && (
+            <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-6 text-sm font-semibold text-slate-500">
+              No completed tasks yet.
+            </div>
+          )}
+        </div>
+      </Modal>
+
+      <Modal
+        open={showAllLedProjects}
+        onClose={() => setShowAllLedProjects(false)}
+        title="Projects I lead"
+        description="Projects where you're the Project Lead."
+        size="lg"
+      >
+        <div className="grid max-h-[70vh] gap-3 overflow-auto pr-1 [scrollbar-width:thin]">
+          {ledProjects.map((project) => (
+            <div key={project._id} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate font-black text-white">{project.name}</p>
+                  <p className="mt-1 text-xs font-semibold text-slate-500">
+                    {project.status === 'Completed' ? 'Completed' : ((project.progress || 0) === 100 ? 'Ready for approval' : (project.status || 'Active'))}
+                  </p>
+                </div>
+                <span className="pill bg-white/10 text-slate-200 text-xs">{project.progress || 0}%</span>
+              </div>
+              <div className="mt-3 h-2 rounded-full bg-white/10">
+                <div className="h-2 rounded-full bg-gradient-to-r from-amber-400 to-fuchsia-400" style={{ width: `${project.progress || 0}%` }} />
+              </div>
+            </div>
+          ))}
+          {ledProjects.length === 0 && (
+            <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-6 text-sm font-semibold text-slate-500">
+              No lead projects yet.
+            </div>
+          )}
+        </div>
+      </Modal>
     </motion.div>
   );
 }

@@ -6,6 +6,8 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useApp } from '../context/AppContext.jsx';
 import { api, qs } from '../utils/api.js';
 import Skeleton, { EmptyState, SkeletonStack } from '../components/Skeleton.jsx';
+import Modal from '../components/Modal.jsx';
+import { useLocation } from 'react-router-dom';
 
 const cardVariants = {
   hidden: { opacity: 0, y: 18 },
@@ -15,16 +17,34 @@ const cardVariants = {
 export default function Team() {
   const { isAdmin } = useAuth();
   const { search } = useApp();
+  const location = useLocation();
   const [users, setUsers] = useState([]);
+  const [leadIds, setLeadIds] = useState(() => new Set());
   const [loading, setLoading] = useState(true);
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [invite, setInvite] = useState({ name: '', email: '', title: 'Team Member', department: 'Product' });
 
+  const openInvite = () => {
+    if (!isAdmin) return toast.error('Only admins can invite members.', { className: 'tf-toast' });
+    setShowInviteForm(true);
+  };
+
   const load = async () => {
     setLoading(true);
     try {
-      const data = await api(`/users${qs({ search, limit: 100 })}`);
-      setUsers(data.items || []);
+      const [userRes, projectsRes] = await Promise.all([
+        api(`/users${qs({ search, limit: 100 })}`),
+        isAdmin ? api('/admin/projects?search=') : api('/projects?limit=200')
+      ]);
+      setUsers(userRes.items || []);
+      const projects = projectsRes.items || [];
+      const nextLeads = new Set(
+        projects
+          .map((project) => project.manager?._id || project.manager)
+          .filter(Boolean)
+          .map((value) => value.toString())
+      );
+      setLeadIds(nextLeads);
     } finally {
       setLoading(false);
     }
@@ -33,6 +53,12 @@ export default function Team() {
   useEffect(() => {
     load();
   }, [search]);
+
+  useEffect(() => {
+    if (location.hash !== '#invite-member') return;
+    setShowInviteForm(true);
+    window.history.replaceState(null, '', location.pathname);
+  }, [location.hash, location.pathname]);
 
   const inviteMember = async (event) => {
     event.preventDefault();
@@ -58,6 +84,12 @@ export default function Team() {
     ];
   }, [users]);
 
+  const roleLabel = (person) => {
+    if (person.role === 'Admin') return { label: 'Admin', tone: 'bg-violet-500/12 text-violet-200' };
+    if (leadIds.has(person._id)) return { label: 'Project Lead', tone: 'bg-amber-400/10 text-amber-100' };
+    return { label: 'Member', tone: 'bg-white/10 text-slate-200' };
+  };
+
   return (
     <motion.div initial="hidden" animate="show" className="grid gap-6 sm:gap-8">
       <motion.header
@@ -72,17 +104,17 @@ export default function Team() {
               Manage collaborators, access levels, and department coverage from one focused workspace.
             </p>
           </div>
-          {isAdmin && (
-            <motion.button
-              whileHover={{ scale: 1.03, y: -2 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={() => setShowInviteForm(!showInviteForm)}
-              className="btn-primary w-full sm:w-auto"
-            >
-              <UserPlus size={18} />
-              Invite member
-            </motion.button>
-          )}
+          <motion.button
+            whileHover={isAdmin ? { scale: 1.03, y: -2 } : undefined}
+            whileTap={isAdmin ? { scale: 0.97 } : undefined}
+            onClick={openInvite}
+            className="btn-primary w-full sm:w-auto"
+            aria-disabled={!isAdmin}
+            title={!isAdmin ? 'Admin access required to invite members' : 'Invite a new teammate'}
+          >
+            <UserPlus size={18} />
+            Invite member
+          </motion.button>
         </div>
       </motion.header>
 
@@ -138,15 +170,20 @@ export default function Team() {
             ))}
           </motion.section>
 
-          <section className={`grid gap-6 ${showInviteForm && isAdmin ? 'xl:grid-cols-[1fr_380px]' : ''}`}>
+          <section className="grid gap-6">
             <motion.div variants={cardVariants} className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
               {users.length === 0 ? (
                 <div className="col-span-full">
                   <EmptyState
                     icon={Users}
-                    title="No team members found"
-                    description="Invite your first collaborator and start building a shared workspace for projects, tasks, and ownership."
-                    action={isAdmin && <button onClick={() => document.getElementById('invite-member')?.scrollIntoView({ behavior: 'smooth' })} className="btn-primary"><UserPlus size={18} />Invite member</button>}
+                    title="Invite your team to start collaborating"
+                    description="Bring teammates into TaskFlow to assign ownership, share updates, and ship projects faster."
+                    action={
+                      <button type="button" onClick={openInvite} className="btn-primary">
+                        <UserPlus size={18} />
+                        Invite member
+                      </button>
+                    }
                   />
                 </div>
               ) : (
@@ -174,7 +211,7 @@ export default function Team() {
                               {user.email}
                             </p>
                           </div>
-                          <span className="pill bg-white/10 text-slate-200">{user.role}</span>
+                          <span className={`pill ${roleLabel(user).tone}`}>{roleLabel(user).label}</span>
                         </div>
                         <div className="mt-4 grid gap-2 text-sm font-semibold text-slate-400">
                           <p className="flex items-center gap-2">
@@ -198,53 +235,35 @@ export default function Team() {
                 ))
               )}
             </motion.div>
-
-            {isAdmin && showInviteForm && (
-              <motion.form
-                id="invite-member"
-                onSubmit={inviteMember}
-                initial={{ opacity: 0, x: 20, scale: 0.95 }}
-                animate={{ opacity: 1, x: 0, scale: 1 }}
-                exit={{ opacity: 0, x: 20, scale: 0.95 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                className="card sticky top-24 h-fit overflow-hidden p-5 sm:p-6"
-              >
-                <div className="mb-5 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="grid h-11 w-11 place-items-center rounded-2xl bg-blue-500/15 text-blue-300">
-                      <UserPlus size={20} />
-                    </div>
-                    <div>
-                      <h2 className="text-lg font-black text-white sm:text-xl">Invite member</h2>
-                      <p className="text-sm font-semibold text-slate-500">Create a collaborator profile.</p>
-                    </div>
-                  </div>
-                  <motion.button
-                    type="button"
-                    onClick={() => setShowInviteForm(false)}
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-white/5 text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
-                    aria-label="Close form"
-                  >
-                    <Plus size={16} className="rotate-45" />
-                  </motion.button>
-                </div>
-                <div className="grid gap-3 sm:gap-4">
-                  <input className="input" placeholder="Name" value={invite.name} onChange={(e) => setInvite({ ...invite, name: e.target.value })} required />
-                  <input className="input" type="email" placeholder="Email" value={invite.email} onChange={(e) => setInvite({ ...invite, email: e.target.value })} required />
-                  <input className="input" placeholder="Title" value={invite.title} onChange={(e) => setInvite({ ...invite, title: e.target.value })} />
-                  <input className="input" placeholder="Department" value={invite.department} onChange={(e) => setInvite({ ...invite, department: e.target.value })} />
-                  <button className="btn-primary">
-                    <UserPlus size={18} />
-                    Create member
-                  </button>
-                </div>
-              </motion.form>
-            )}
           </section>
         </>
       )}
+
+      <Modal
+        open={isAdmin && showInviteForm}
+        onClose={() => setShowInviteForm(false)}
+        title="Invite team member"
+        description="Create a collaborator profile and send credentials via email."
+        size="md"
+      >
+        <form id="invite-member" onSubmit={inviteMember} className="grid gap-3 sm:gap-4">
+          <input className="input" placeholder="Name" value={invite.name} onChange={(e) => setInvite({ ...invite, name: e.target.value })} required />
+          <input className="input" type="email" placeholder="Email" value={invite.email} onChange={(e) => setInvite({ ...invite, email: e.target.value })} required />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <input className="input" placeholder="Title" value={invite.title} onChange={(e) => setInvite({ ...invite, title: e.target.value })} />
+            <input className="input" placeholder="Department" value={invite.department} onChange={(e) => setInvite({ ...invite, department: e.target.value })} />
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+            <button type="button" className="btn-secondary" onClick={() => setShowInviteForm(false)}>
+              Cancel
+            </button>
+            <button className="btn-primary">
+              <UserPlus size={18} />
+              Create member
+            </button>
+          </div>
+        </form>
+      </Modal>
     </motion.div>
   );
 }

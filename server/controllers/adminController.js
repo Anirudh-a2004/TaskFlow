@@ -7,6 +7,7 @@ import User from '../models/User.js';
 import { notFound } from '../utils/apiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { pagination, searchFilter } from '../utils/query.js';
+import { recalcProjectProgress } from './projectController.js';
 
 function action(req, payload) {
   return Activity.create({ actor: req.user._id, ip: req.ip, ...payload });
@@ -24,6 +25,7 @@ export const adminOverview = asyncHandler(async (req, res) => {
   const now = new Date();
   const completed = tasks.filter((task) => task.status === 'Completed');
   const overdue = tasks.filter((task) => task.dueDate && task.dueDate < now && task.status !== 'Completed');
+  const completedProjects = activeProjects.filter((project) => project.status === 'Completed');
   const memberStats = users.map((user) => {
     const assigned = tasks.filter((task) => task.assignee?._id?.equals(user._id));
     const done = assigned.filter((task) => task.status === 'Completed').length;
@@ -41,6 +43,7 @@ export const adminOverview = asyncHandler(async (req, res) => {
     cards: {
       totalUsers: users.length,
       activeProjects: activeProjects.length,
+      completedProjects: completedProjects.length,
       archivedProjects: archivedProjects.length,
       completedTasks: completed.length,
       overdueTasks: overdue.length,
@@ -118,8 +121,19 @@ export const updateProjectAdmin = asyncHandler(async (req, res) => {
 
 export const archiveProject = asyncHandler(async (req, res) => {
   const archived = req.body.archived !== false;
-  const project = await Project.findByIdAndUpdate(req.params.id, { archived, archivedAt: archived ? new Date() : undefined }, { new: true });
+  const project = await Project.findById(req.params.id);
   if (!project) throw notFound('Project');
+
+  project.archived = archived;
+  project.archivedAt = archived ? new Date() : undefined;
+  if (archived) {
+    project.status = 'Archived';
+    project.completedAt = undefined;
+  } else {
+    await recalcProjectProgress(project._id);
+  }
+
+  await project.save();
   await action(req, { action: archived ? 'project.archived' : 'project.restored', project: project._id, detail: project.name, severity: archived ? 'warning' : 'info' });
   res.json({ project });
 });

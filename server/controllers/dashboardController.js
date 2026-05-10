@@ -6,7 +6,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 
 export const dashboard = asyncHandler(async (req, res) => {
   const access = req.user.role === 'Admin' ? {} : { members: req.user._id };
-  const projects = await Project.find(access).select('_id name progress deadline priority');
+  const projects = await Project.find(access).select('_id name progress deadline priority status archived');
   const projectIds = projects.map((project) => project._id);
   const tasks = await Task.find({ project: { $in: projectIds } }).populate('project', 'name').populate('assignee', 'name avatar');
   const today = new Date();
@@ -32,9 +32,12 @@ export const dashboard = asyncHandler(async (req, res) => {
     Notification.find({ user: req.user._id }).sort({ createdAt: -1 }).limit(8)
   ]);
 
+  const completedProjects = projects.filter((project) => !project.archived && project.status === 'Completed');
+
   res.json({
     cards: {
       projects: projects.length,
+      completedProjects: completedProjects.length,
       completed: completed.length,
       pending: pending.length,
       overdue: overdue.length

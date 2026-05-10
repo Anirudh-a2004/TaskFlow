@@ -8,6 +8,8 @@ import Skeleton, { EmptyState, SkeletonStack } from '../components/Skeleton.jsx'
 import { useAuth } from '../context/AuthContext.jsx';
 import { useApp } from '../context/AppContext.jsx';
 import { api, qs } from '../utils/api.js';
+import Modal from '../components/Modal.jsx';
+import { useLocation } from 'react-router-dom';
 
 const columns = [
   { id: 'Todo', label: 'Todo', icon: Clock, gradient: 'from-slate-500 to-slate-600', accent: 'slate' },
@@ -28,14 +30,36 @@ const isToday = (dueDate) => dueDate && new Date(dueDate).toDateString() === new
 const isSoon = (dueDate) => dueDate && new Date(dueDate) > new Date() && new Date(dueDate).getTime() - new Date().getTime() < 7 * 24 * 60 * 60 * 1000;
 
 export default function Tasks() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   const { search } = useApp();
+  const location = useLocation();
   const [tasks, setTasks] = useState([]);
   const [projects, setProjects] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({ title: '', description: '', project: '', assignee: '', priority: 'Medium', dueDate: '', subtasks: [] });
+  const [activeTask, setActiveTask] = useState(null);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+
+  const leadProjects = useMemo(
+    () => projects.filter((project) => (project.manager?._id || project.manager) === user?._id),
+    [projects, user?._id]
+  );
+
+  const canCreateAnyTask = isAdmin || leadProjects.length > 0;
+
+  const canCompleteTask = (task) => {
+    if (isAdmin) return true;
+    const managerId = task?.project?.manager?._id || task?.project?.manager;
+    return Boolean(managerId && managerId === user?._id);
+  };
+
+  const openCreate = () => {
+    if (!canCreateAnyTask) return toast.error('You do not have permission to manage tasks for this project.', { className: 'tf-toast' });
+    setShowCreateForm(true);
+  };
 
   const load = async () => {
     setLoading(true);
@@ -63,25 +87,118 @@ export default function Tasks() {
     load();
   }, [search]);
 
+  useEffect(() => {
+    if (location.hash !== '#create-task') return;
+    setShowCreateForm(true);
+    window.history.replaceState(null, '', location.pathname);
+  }, [location.hash, location.pathname]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const taskId = params.get('task');
+    if (!taskId) return;
+    const match = tasks.find((task) => task._id === taskId);
+    if (!match) return;
+    setActiveTask(match);
+    params.delete('task');
+    const next = params.toString();
+    window.history.replaceState(null, '', `${location.pathname}${next ? `?${next}` : ''}`);
+  }, [location.search, location.pathname, tasks]);
+
+  const selectedProject = useMemo(
+    () => projects.find((project) => project._id === form.project),
+    [projects, form.project]
+  );
+
+  const assigneeOptions = useMemo(() => {
+    if (!selectedProject?.members?.length) return users;
+    const allowed = new Set(
+      selectedProject.members
+        .map((member) => member?._id || member)
+        .filter(Boolean)
+        .map((value) => value.toString())
+    );
+    return users.filter((user) => allowed.has(user._id));
+  }, [selectedProject, users]);
+
   const grouped = useMemo(() => Object.fromEntries(columns.map((col) => [col.id, tasks.filter((task) => task.status === col.id)])), [tasks]);
 
   const create = async (event) => {
     event.preventDefault();
-    await api('/tasks', { method: 'POST', body: JSON.stringify(form) });
-    toast.success('Task created.');
-    setForm({ title: '', description: '', project: '', assignee: '', priority: 'Medium', dueDate: '', subtasks: [] });
-    setShowCreateForm(false);
-    load();
+    if (creating) return;
+    setCreating(true);
+    try {
+      const project = projects.find((p) => p._id === form.project);
+      const isLead = project && (project.manager?._id || project.manager) === user?._id;
+      if (!isAdmin && !isLead) {
+        toast.error('You do not have permission to manage tasks for this project.', { className: 'tf-toast' });
+        return;
+      }
+      const payload = {
+        ...form,
+        assignee: form.assignee || undefined,
+        dueDate: form.dueDate || undefined
+      };
+      const created = await api('/tasks', { method: 'POST', body: JSON.stringify(payload) });
+      const nextTask = created.task || created.item || created;
+
+      if (nextTask?._id) {
+        setTasks((current) => [nextTask, ...(current || [])]);
+      }
+
+      toast.success('Task created.');
+      setForm({ title: '', description: '', project: '', assignee: '', priority: 'Medium', dueDate: '', subtasks: [] });
+      setShowCreateForm(false);
+      load();
+    } catch (error) {
+      toast.error(error.message || 'Unable to create task.', { className: 'tf-toast' });
+    } finally {
+      setCreating(false);
+    }
   };
 
-  const onDragEnd = async ({ destination, draggableId }) => {
+  const onDragEnd = async ({ destination, draggableId, source }) => {
     if (!destination) return;
+    if ((destination.droppableId === 'Completed' || source?.droppableId === 'Completed')) {
+      const task = tasks.find((t) => t._id === draggableId);
+      if (task && !canCompleteTask(task)) {
+        toast.error('You do not have permission to move tasks into Completed.', { className: 'tf-toast' });
+        return;
+      }
+    }
     const nextTasks = tasks.map((task) => (task._id === draggableId ? { ...task, status: destination.droppableId, order: destination.index } : task));
     setTasks(nextTasks);
     await api('/tasks/reorder', {
       method: 'PATCH',
       body: JSON.stringify({ tasks: nextTasks.map((task, index) => ({ id: task._id, status: task.status, order: index })) })
     });
+  };
+
+  const canEditTask = (task) => isAdmin || (task.assignee && (task.assignee?._id || task.assignee) === user?._id);
+
+  const updateStatus = async (task, nextStatus) => {
+    if (!task?._id || task.status === nextStatus) return;
+    if (!canEditTask(task)) return toast.error('You can only update tasks assigned to you.', { className: 'tf-toast' });
+    if (nextStatus === 'Completed' && !canCompleteTask(task)) {
+      return toast.error('You do not have permission to move tasks into Completed.', { className: 'tf-toast' });
+    }
+
+    setUpdatingStatus(true);
+    setTasks((current) => current.map((t) => (t._id === task._id ? { ...t, status: nextStatus } : t)));
+    if (activeTask?._id === task._id) setActiveTask((t) => ({ ...t, status: nextStatus }));
+
+    try {
+      const res = await api(`/tasks/${task._id}`, { method: 'PATCH', body: JSON.stringify({ status: nextStatus }) });
+      const saved = res.task || res;
+      setTasks((current) => current.map((t) => (t._id === task._id ? { ...t, ...saved } : t)));
+      if (activeTask?._id === task._id) setActiveTask((t) => ({ ...t, ...saved }));
+      toast.success('Status updated.', { className: 'tf-toast' });
+    } catch (error) {
+      toast.error(error.message || 'Unable to update status.', { className: 'tf-toast' });
+      load();
+    } finally {
+      setUpdatingStatus(false);
+    }
   };
 
   return (
@@ -93,17 +210,17 @@ export default function Tasks() {
           <h1 className="mt-1 text-3xl font-black tracking-tight text-white sm:text-4xl">Kanban Board</h1>
           <p className="mt-2 text-sm font-semibold leading-6 text-slate-400">Prioritize work, drag tasks across stages, and keep delivery moving.</p>
         </div>
-        {isAdmin && (
-          <motion.button
-            whileHover={{ scale: 1.03, y: -2 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setShowCreateForm(!showCreateForm)}
-            className="btn-secondary w-full !px-4 !py-2.5 text-sm font-black sm:w-auto"
-          >
-            <Plus size={18} />
-            New Task
-          </motion.button>
-        )}
+        <motion.button
+          whileHover={canCreateAnyTask ? { scale: 1.03, y: -2 } : undefined}
+          whileTap={canCreateAnyTask ? { scale: 0.95 } : undefined}
+          onClick={openCreate}
+          className="btn-secondary w-full !px-4 !py-2.5 text-sm font-black sm:w-auto"
+          aria-disabled={!canCreateAnyTask}
+          title={!canCreateAnyTask ? 'Project Lead or Admin access required to create tasks' : 'Create a new task'}
+        >
+          <Plus size={18} />
+          New Task
+        </motion.button>
       </motion.div>
 
       {loading ? (
@@ -128,20 +245,25 @@ export default function Tasks() {
           {isAdmin && <SkeletonStack rows={6} className="card h-fit p-5" />}
         </div>
       ) : (
-        <section className={`grid gap-6 ${showCreateForm && isAdmin ? 'xl:grid-cols-[1fr_380px]' : ''}`}>
+        <section className="grid gap-6">
           {tasks.length === 0 && (
-            <div className={showCreateForm && isAdmin ? '' : 'xl:col-span-2'}>
+            <div>
               <EmptyState
                 icon={CheckCircle2}
-                title="Create your first task to get started"
-                description="Your board is ready. Add work, assign an owner, and move it through the workflow as progress happens."
-                action={isAdmin && <a href="#create-task" className="btn-primary"><Plus size={18} />Create task</a>}
+                title="No tasks yet — add your first task"
+                description="Kickstart your workflow by creating a task, assigning an owner, and setting a due date for visibility."
+                action={
+                  <button type="button" onClick={openCreate} className="btn-primary">
+                    <Plus size={18} />
+                    Create task
+                  </button>
+                }
               />
             </div>
           )}
           <DragDropContext onDragEnd={onDragEnd}>
             <motion.div
-              className="kanban-board max-w-[calc(100vw-2rem)] overflow-x-auto overscroll-x-contain rounded-[2rem] border border-white/10 bg-white/[0.035] p-3 shadow-2xl shadow-black/10 backdrop-blur-2xl [scrollbar-color:rgba(103,232,249,.45)_rgba(15,23,42,.55)] [scrollbar-width:thin] sm:max-w-[calc(100vw-3rem)] sm:p-4"
+              className="kanban-board w-full overflow-x-auto overscroll-x-contain rounded-[2rem] border border-white/10 bg-white/[0.035] p-3 shadow-2xl shadow-black/10 backdrop-blur-2xl [scrollbar-color:rgba(103,232,249,.45)_rgba(15,23,42,.55)] [scrollbar-width:thin] sm:p-4"
               initial="hidden"
               animate="show"
               variants={{ show: { transition: { staggerChildren: 0.08 } } }}
@@ -150,24 +272,24 @@ export default function Tasks() {
                 <ChevronRight size={14} className="text-cyan-300" />
                 Swipe sideways to view every workflow stage
               </div>
-              <div className="flex snap-x snap-mandatory gap-3 sm:gap-4 lg:grid lg:grid-cols-4">
+              <div className="flex snap-x snap-mandatory items-start gap-3 sm:gap-4 lg:grid lg:grid-cols-4 lg:items-stretch">
                 {columns.map((column) => {
                   const Icon = column.icon;
                   return (
                     <motion.div
                       key={column.id}
                       variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { duration: 0.4 } } }}
-                      className="w-[82vw] max-w-sm flex-shrink-0 snap-start space-y-4 sm:w-80 lg:w-auto lg:max-w-none"
+                      className="w-[82vw] max-w-sm shrink-0 snap-start space-y-4 sm:w-80 lg:w-auto lg:max-w-none lg:shrink lg:min-w-0"
                     >
                     <Droppable droppableId={column.id}>
                       {(provided, snapshot) => (
                         <div
                           ref={provided.innerRef}
                           {...provided.droppableProps}
-                          className={`kanban-column min-h-[520px] rounded-[1.5rem] border border-white/10 transition-all duration-300 sm:min-h-[560px] ${
+                          className={`kanban-column min-h-[520px] min-w-0 rounded-[1.5rem] border transition-all duration-300 sm:min-h-[560px] ${
                             snapshot.isDraggingOver
-                              ? 'border-blue-500/50 bg-white/[0.08] shadow-2xl shadow-blue-500/20 backdrop-blur-2xl'
-                              : 'bg-white/[0.035] shadow-2xl shadow-black/10 backdrop-blur-2xl'
+                              ? 'border-blue-500/50 shadow-2xl shadow-blue-500/20'
+                              : 'shadow-2xl shadow-black/10'
                           }`}
                         >
                           {/* Column Header */}
@@ -210,6 +332,7 @@ export default function Tasks() {
                                 const overdue = isOverdue(task.dueDate);
                                 const today = isToday(task.dueDate);
                                 const soon = isSoon(task.dueDate);
+                                const editable = canEditTask(task);
 
                                 return (
                                   <Draggable key={task._id} draggableId={task._id} index={index}>
@@ -223,12 +346,33 @@ export default function Tasks() {
                                         transition={{ delay: index * 0.05 }}
                                         whileHover={{ y: -4 }}
                                         whileTap={{ scale: 1.02 }}
-                                        className={`kanban-task-card group cursor-grab rounded-[1.25rem] border border-white/15 p-4 transition-all duration-300 active:cursor-grabbing ${
+                                        onClick={() => setActiveTask(task)}
+                                        className={`kanban-task-card group min-w-0 cursor-grab rounded-[1.25rem] border border-white/15 p-4 transition-all duration-300 active:cursor-grabbing ${
                                           dragSnapshot.isDragging
                                             ? 'border-blue-400/50 bg-white/[0.12] shadow-2xl shadow-blue-500/30 backdrop-blur-xl'
                                             : 'bg-white/[0.06] shadow-lg shadow-black/20 backdrop-blur-md hover:border-cyan-300/40 hover:bg-white/[0.1]'
                                         } ${overdue && column.id !== 'Completed' ? 'border-rose-400/40 bg-rose-500/10' : ''}`}
                                       >
+                                        <div className="mb-3 flex items-center justify-between gap-2">
+                                          <div className="flex items-center gap-2">
+                                            <select
+                                              className="input !w-auto !px-3 !py-2 text-xs font-black uppercase tracking-[0.16em]"
+                                              value={task.status}
+                                              disabled={!editable || updatingStatus}
+                                              onClick={(e) => e.stopPropagation()}
+                                              onPointerDown={(e) => e.stopPropagation()}
+                                              onChange={(e) => updateStatus(task, e.target.value)}
+                                              aria-label="Update task status"
+                                            >
+                                              {columns.map((col) => (
+                                                <option key={col.id} value={col.id}>
+                                                  {col.label}
+                                                </option>
+                                              ))}
+                                            </select>
+                                          </div>
+                                        </div>
+
                                         {/* Priority & Status */}
                                         <div className="mb-3 flex items-start justify-between gap-2">
                                           <h3 className="flex-1 font-bold text-white line-clamp-2">{task.title}</h3>
@@ -318,109 +462,146 @@ export default function Tasks() {
               </div>
             </motion.div>
           </DragDropContext>
-
-          {/* Create Task Form - Sidebar */}
-          {isAdmin && showCreateForm && (
-            <motion.form
-              id="create-task"
-              onSubmit={create}
-              initial={{ opacity: 0, x: 20, scale: 0.95 }}
-              animate={{ opacity: 1, x: 0, scale: 1 }}
-              exit={{ opacity: 0, x: 20, scale: 0.95 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              className="card sticky top-6 h-fit overflow-hidden p-4 shadow-2xl sm:top-24 sm:p-6"
-            >
-              <div className="mb-4 flex items-center justify-between gap-2 sm:mb-6">
-                <div className="flex items-center gap-2">
-                  <Plus className="text-blue-600" size={20} />
-                  <h2 className="text-lg font-black text-white sm:text-xl">Create Task</h2>
-                </div>
-                <motion.button
-                  type="button"
-                  onClick={() => setShowCreateForm(false)}
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                  className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-white/5 text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
-                  aria-label="Close form"
-                >
-                  <Plus size={16} className="rotate-45" />
-                </motion.button>
-              </div>
-              <div className="grid gap-3 sm:gap-4">
-                <motion.input
-                  whileFocus={{ scale: 1.02 }}
-                  className="input"
-                  placeholder="Task title"
-                  value={form.title}
-                  onChange={(e) => setForm({ ...form, title: e.target.value })}
-                  required
-                />
-                <motion.textarea
-                  whileFocus={{ scale: 1.02 }}
-                  className="input min-h-20 sm:min-h-24"
-                  placeholder="Description (optional)"
-                  value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
-                />
-                <motion.select
-                  whileFocus={{ scale: 1.02 }}
-                  className="input"
-                  value={form.project}
-                  onChange={(e) => setForm({ ...form, project: e.target.value })}
-                  required
-                >
-                  <option value="">Select project</option>
-                  {projects.map((project) => (
-                    <option key={project._id} value={project._id}>
-                      {project.name}
-                    </option>
-                  ))}
-                </motion.select>
-                <motion.select
-                  whileFocus={{ scale: 1.02 }}
-                  className="input"
-                  value={form.assignee}
-                  onChange={(e) => setForm({ ...form, assignee: e.target.value })}
-                >
-                  <option value="">Unassigned</option>
-                  {users.map((user) => (
-                    <option key={user._id} value={user._id}>
-                      {user.name}
-                    </option>
-                  ))}
-                </motion.select>
-                <div className="grid grid-cols-2 gap-3">
-                  <motion.select
-                    whileFocus={{ scale: 1.02 }}
-                    className="input"
-                    value={form.priority}
-                    onChange={(e) => setForm({ ...form, priority: e.target.value })}
-                  >
-                    {['Low', 'Medium', 'High', 'Urgent'].map((item) => (
-                      <option key={item}>{item}</option>
-                    ))}
-                  </motion.select>
-                  <motion.input
-                    whileFocus={{ scale: 1.02 }}
-                    className="input"
-                    type="date"
-                    value={form.dueDate}
-                    onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
-                  />
-                </div>
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="btn-primary flex items-center justify-center gap-2"
-                >
-                  <Plus size={18} />
-                  Create task
-                </motion.button>
-              </div>
-            </motion.form>
-          )}
         </section>
       )}
+
+      <Modal
+        open={!!activeTask}
+        onClose={() => setActiveTask(null)}
+        title={activeTask?.title || 'Task details'}
+        description="Update status, review context, and keep work moving."
+        size="md"
+      >
+        {activeTask && (
+          <div className="grid gap-4">
+            <div className="card !rounded-[1.5rem] p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="grid gap-1">
+                  <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-500">Status</p>
+                  <p className="text-sm font-black text-white">{activeTask.status}</p>
+                </div>
+                <select
+                  className="input !w-auto"
+                  value={activeTask.status}
+                  disabled={!canEditTask(activeTask) || updatingStatus}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onChange={(e) => updateStatus(activeTask, e.target.value)}
+                >
+                  {columns.map((col) => (
+                    <option key={col.id} value={col.id}>
+                      {col.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {activeTask.description && (
+                <p className="mt-3 text-sm font-semibold leading-6 text-slate-400">{activeTask.description}</p>
+              )}
+              <div className="mt-4 flex flex-wrap gap-2">
+                {activeTask.project?.name && <span className="pill bg-white/10 text-slate-200">{activeTask.project.name}</span>}
+                {activeTask.assignee?.name && <span className="pill bg-white/10 text-slate-200">{activeTask.assignee.name}</span>}
+                {activeTask.priority && <span className="pill bg-white/10 text-slate-200">{activeTask.priority}</span>}
+                {activeTask.dueDate && (
+                  <span className="pill bg-white/10 text-slate-200">
+                    <Calendar size={14} />
+                    {new Date(activeTask.dueDate).toLocaleDateString()}
+                  </span>
+                )}
+              </div>
+              {!canEditTask(activeTask) && !isAdmin && (
+                <p className="mt-3 text-xs font-semibold text-slate-500">You can update status once this task is assigned to you.</p>
+              )}
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      <Modal
+        open={showCreateForm}
+        onClose={() => setShowCreateForm(false)}
+        title="Create task"
+        description="Capture a task, assign ownership, and set priority and due date."
+        size="md"
+      >
+        <form id="create-task" onSubmit={create} className="grid gap-3 sm:gap-4">
+          <motion.input
+            whileFocus={{ scale: 1.01 }}
+            className="input"
+            placeholder="Task title"
+            value={form.title}
+            onChange={(e) => setForm({ ...form, title: e.target.value })}
+            required
+          />
+          <motion.textarea
+            whileFocus={{ scale: 1.01 }}
+            className="input min-h-20 sm:min-h-24"
+            placeholder="Description (optional)"
+            value={form.description}
+            onChange={(e) => setForm({ ...form, description: e.target.value })}
+          />
+          <motion.select
+            whileFocus={{ scale: 1.01 }}
+            className="input"
+            value={form.project}
+            onChange={(e) => setForm({ ...form, project: e.target.value, assignee: '' })}
+            required
+          >
+            <option value="">Select project</option>
+            {(isAdmin ? projects : leadProjects).map((project) => (
+              <option key={project._id} value={project._id}>
+                {project.name}
+              </option>
+            ))}
+          </motion.select>
+          <motion.select
+            whileFocus={{ scale: 1.01 }}
+            className="input"
+            value={form.assignee}
+            onChange={(e) => setForm({ ...form, assignee: e.target.value })}
+            disabled={!form.project}
+          >
+            <option value="">Unassigned</option>
+            {assigneeOptions.map((user) => (
+              <option key={user._id} value={user._id}>
+                {user.name}
+              </option>
+            ))}
+          </motion.select>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <motion.select
+              whileFocus={{ scale: 1.01 }}
+              className="input"
+              value={form.priority}
+              onChange={(e) => setForm({ ...form, priority: e.target.value })}
+            >
+              {['Low', 'Medium', 'High', 'Urgent'].map((item) => (
+                <option key={item}>{item}</option>
+              ))}
+            </motion.select>
+            <motion.input
+              whileFocus={{ scale: 1.01 }}
+              className="input"
+              type="date"
+              value={form.dueDate}
+              onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
+            />
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+            <button type="button" className="btn-secondary" onClick={() => setShowCreateForm(false)}>
+              Cancel
+            </button>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="btn-primary"
+              disabled={creating}
+            >
+              <Plus size={18} />
+              {creating ? 'Creating…' : 'Create task'}
+            </motion.button>
+          </div>
+        </form>
+      </Modal>
     </motion.div>
   );
 }
