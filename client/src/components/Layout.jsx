@@ -6,14 +6,14 @@ import { useApp } from '../context/AppContext.jsx';
 import { useState } from 'react';
 
 const nav = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/projects', label: 'Projects', icon: KanbanSquare },
-  { to: '/tasks', label: 'Kanban', icon: CalendarDays },
-  { to: '/calendar', label: 'Calendar', icon: CalendarDays },
-  { to: '/team', label: 'Team', icon: Users },
-  { to: '/notifications', label: 'Notifications', icon: Bell, badge: 3 }, // Example badge count
-  { to: '/profile', label: 'Profile', icon: Settings },
-  { to: '/admin', label: 'Admin', icon: ShieldCheck, adminOnly: true }
+  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/dashboard/projects', label: 'Projects', icon: KanbanSquare },
+  { to: '/dashboard/tasks', label: 'Kanban', icon: CalendarDays },
+  { to: '/dashboard/calendar', label: 'Calendar', icon: CalendarDays },
+  { to: '/dashboard/team', label: 'Team', icon: Users },
+  { to: '/dashboard/notifications', label: 'Notifications', icon: Bell, badge: 3 }, // Example badge count
+  { to: '/dashboard/profile', label: 'Profile', icon: Settings },
+  { to: '/dashboard/admin', label: 'Admin', icon: ShieldCheck, adminOnly: true }
 ];
 
 export default function Layout() {
@@ -224,7 +224,7 @@ export default function Layout() {
                 {dark ? <Sun size={18} /> : <Moon size={18} />}
               </motion.button>
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                <NavLink to="/notifications" className="btn-secondary relative !p-3" aria-label="Notifications">
+                <NavLink to="/dashboard/notifications" className="btn-secondary relative !p-3" aria-label="Notifications">
                   <Bell size={18} />
                   {/* Notification Badge */}
                   <motion.span
