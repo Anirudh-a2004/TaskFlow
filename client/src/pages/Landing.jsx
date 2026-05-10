@@ -175,8 +175,8 @@ export default function Landing() {
   const secondaryTo = user ? workspacePath : '/login';
 
   return (
-    <div className="min-h-screen overflow-hidden bg-slate-950 text-white">
-      <div className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(circle_at_20%_10%,rgba(59,130,246,.24),transparent_28%),radial-gradient(circle_at_85%_5%,rgba(20,184,166,.16),transparent_24%),radial-gradient(circle_at_45%_75%,rgba(217,70,239,.14),transparent_28%)]" />
+    <div className="app-shell min-h-screen overflow-hidden bg-slate-950 text-white">
+      <div className="app-backdrop pointer-events-none fixed inset-0 -z-10" />
 
       <header className="sticky top-0 z-40 border-b border-white/10 bg-slate-950/72 backdrop-blur-2xl">
         <nav className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">

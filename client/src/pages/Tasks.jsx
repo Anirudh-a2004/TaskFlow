@@ -34,6 +34,7 @@ export default function Tasks() {
   const [projects, setProjects] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showCreateForm, setShowCreateForm] = useState(false);
   const [form, setForm] = useState({ title: '', description: '', project: '', assignee: '', priority: 'Medium', dueDate: '', subtasks: [] });
 
   const load = async () => {
@@ -69,6 +70,7 @@ export default function Tasks() {
     await api('/tasks', { method: 'POST', body: JSON.stringify(form) });
     toast.success('Task created.');
     setForm({ title: '', description: '', project: '', assignee: '', priority: 'Medium', dueDate: '', subtasks: [] });
+    setShowCreateForm(false);
     load();
   };
 
@@ -92,15 +94,15 @@ export default function Tasks() {
           <p className="mt-2 text-sm font-semibold leading-6 text-slate-400">Prioritize work, drag tasks across stages, and keep delivery moving.</p>
         </div>
         {isAdmin && (
-          <motion.a
-            whileHover={{ scale: 1.05 }}
+          <motion.button
+            whileHover={{ scale: 1.03, y: -2 }}
             whileTap={{ scale: 0.95 }}
-            href="#create-task"
-            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-fuchsia-600 px-4 py-3 font-black text-white shadow-lg shadow-blue-600/25 transition hover:shadow-lg hover:shadow-fuchsia-600/30 sm:w-auto sm:px-5"
+            onClick={() => setShowCreateForm(!showCreateForm)}
+            className="btn-secondary w-full !px-4 !py-2.5 text-sm font-black sm:w-auto"
           >
-            <Plus size={18} className="sm:size-20" />
+            <Plus size={18} />
             New Task
-          </motion.a>
+          </motion.button>
         )}
       </motion.div>
 
@@ -126,9 +128,9 @@ export default function Tasks() {
           {isAdmin && <SkeletonStack rows={6} className="card h-fit p-5" />}
         </div>
       ) : (
-        <section className="grid gap-6 xl:grid-cols-[1fr_380px]">
+        <section className={`grid gap-6 ${showCreateForm && isAdmin ? 'xl:grid-cols-[1fr_380px]' : ''}`}>
           {tasks.length === 0 && (
-            <div className="xl:col-span-2">
+            <div className={showCreateForm && isAdmin ? '' : 'xl:col-span-2'}>
               <EmptyState
                 icon={CheckCircle2}
                 title="Create your first task to get started"
@@ -139,7 +141,7 @@ export default function Tasks() {
           )}
           <DragDropContext onDragEnd={onDragEnd}>
             <motion.div
-              className="max-w-[calc(100vw-2rem)] overflow-x-auto overscroll-x-contain rounded-[2rem] pb-4 [scrollbar-color:rgba(103,232,249,.45)_rgba(15,23,42,.55)] [scrollbar-width:thin] sm:max-w-[calc(100vw-3rem)]"
+              className="kanban-board max-w-[calc(100vw-2rem)] overflow-x-auto overscroll-x-contain rounded-[2rem] border border-white/10 bg-white/[0.035] p-3 shadow-2xl shadow-black/10 backdrop-blur-2xl [scrollbar-color:rgba(103,232,249,.45)_rgba(15,23,42,.55)] [scrollbar-width:thin] sm:max-w-[calc(100vw-3rem)] sm:p-4"
               initial="hidden"
               animate="show"
               variants={{ show: { transition: { staggerChildren: 0.08 } } }}
@@ -148,7 +150,7 @@ export default function Tasks() {
                 <ChevronRight size={14} className="text-cyan-300" />
                 Swipe sideways to view every workflow stage
               </div>
-              <div className="flex snap-x snap-mandatory gap-4 sm:gap-6 lg:grid lg:grid-cols-4 lg:gap-6">
+              <div className="flex snap-x snap-mandatory gap-3 sm:gap-4 lg:grid lg:grid-cols-4">
                 {columns.map((column) => {
                   const Icon = column.icon;
                   return (
@@ -162,27 +164,29 @@ export default function Tasks() {
                         <div
                           ref={provided.innerRef}
                           {...provided.droppableProps}
-                          className={`min-h-[540px] rounded-[2rem] border border-white/10 transition-all duration-300 sm:min-h-[580px] ${
+                          className={`kanban-column min-h-[520px] rounded-[1.5rem] border border-white/10 transition-all duration-300 sm:min-h-[560px] ${
                             snapshot.isDraggingOver
                               ? 'border-blue-500/50 bg-white/[0.08] shadow-2xl shadow-blue-500/20 backdrop-blur-2xl'
                               : 'bg-white/[0.035] shadow-2xl shadow-black/10 backdrop-blur-2xl'
                           }`}
                         >
                           {/* Column Header */}
-                          <div className={`relative overflow-hidden rounded-t-[2rem] bg-gradient-to-r ${column.gradient} p-5`}>
+                          <div className={`relative overflow-hidden rounded-t-[1.5rem] bg-gradient-to-r ${column.gradient} p-4`}>
                             <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
                             <div className="relative flex items-center justify-between gap-3">
                               <div className="flex items-center gap-3">
-                                <Icon size={20} className="text-white" />
+                                <div className="grid h-9 w-9 place-items-center rounded-xl bg-white/15 text-white ring-1 ring-white/20">
+                                  <Icon size={18} />
+                                </div>
                                 <div>
                                   <h2 className="font-black text-white">{column.label}</h2>
-                                  <p className="text-xs text-white/70">{grouped[column.id].length} task{grouped[column.id].length !== 1 ? 's' : ''}</p>
+                                  <p className="text-xs font-semibold text-white/70">{grouped[column.id].length} task{grouped[column.id].length !== 1 ? 's' : ''}</p>
                                 </div>
                               </div>
                               <motion.div
                                 initial={{ scale: 0.8, opacity: 0 }}
                                 animate={{ scale: 1, opacity: 1 }}
-                                className="grid h-8 w-8 place-items-center rounded-lg bg-white/20 font-black text-white backdrop-blur-md"
+                                className="grid h-8 w-8 place-items-center rounded-xl bg-white/20 text-sm font-black text-white backdrop-blur-md"
                               >
                                 {grouped[column.id].length}
                               </motion.div>
@@ -190,12 +194,12 @@ export default function Tasks() {
                           </div>
 
                           {/* Column Content */}
-                          <div className="space-y-3 p-4">
+                          <div className="space-y-3 p-3 sm:p-4">
                             {grouped[column.id].length === 0 ? (
                               <motion.div
                                 initial={{ opacity: 0, scale: 0.9 }}
                                 animate={{ opacity: 1, scale: 1 }}
-                                className="rounded-2xl border-2 border-dashed border-white/10 bg-white/[0.02] px-4 py-12 text-center"
+                                className="rounded-[1.25rem] border border-dashed border-white/10 bg-white/[0.025] px-4 py-10 text-center"
                               >
                                 <AlertCircle size={32} className="mx-auto mb-2 text-slate-500" />
                                 <p className="text-sm font-black text-slate-300">No tasks here</p>
@@ -219,7 +223,7 @@ export default function Tasks() {
                                         transition={{ delay: index * 0.05 }}
                                         whileHover={{ y: -4 }}
                                         whileTap={{ scale: 1.02 }}
-                                        className={`group cursor-grab rounded-2xl border border-white/15 p-4 transition-all duration-300 active:cursor-grabbing ${
+                                        className={`kanban-task-card group cursor-grab rounded-[1.25rem] border border-white/15 p-4 transition-all duration-300 active:cursor-grabbing ${
                                           dragSnapshot.isDragging
                                             ? 'border-blue-400/50 bg-white/[0.12] shadow-2xl shadow-blue-500/30 backdrop-blur-xl'
                                             : 'bg-white/[0.06] shadow-lg shadow-black/20 backdrop-blur-md hover:border-cyan-300/40 hover:bg-white/[0.1]'
@@ -316,18 +320,31 @@ export default function Tasks() {
           </DragDropContext>
 
           {/* Create Task Form - Sidebar */}
-          {isAdmin && (
+          {isAdmin && showCreateForm && (
             <motion.form
               id="create-task"
               onSubmit={create}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.3 }}
+              initial={{ opacity: 0, x: 20, scale: 0.95 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              exit={{ opacity: 0, x: 20, scale: 0.95 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
               className="card sticky top-6 h-fit overflow-hidden p-4 shadow-2xl sm:top-24 sm:p-6"
             >
-              <div className="mb-4 flex items-center gap-2 sm:mb-6">
-                <Plus className="text-blue-600" size={20} />
-                <h2 className="text-lg font-black text-white sm:text-xl">Create Task</h2>
+              <div className="mb-4 flex items-center justify-between gap-2 sm:mb-6">
+                <div className="flex items-center gap-2">
+                  <Plus className="text-blue-600" size={20} />
+                  <h2 className="text-lg font-black text-white sm:text-xl">Create Task</h2>
+                </div>
+                <motion.button
+                  type="button"
+                  onClick={() => setShowCreateForm(false)}
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-white/5 text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
+                  aria-label="Close form"
+                >
+                  <Plus size={16} className="rotate-45" />
+                </motion.button>
               </div>
               <div className="grid gap-3 sm:gap-4">
                 <motion.input

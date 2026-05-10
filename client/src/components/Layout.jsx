@@ -1,9 +1,9 @@
 import { Bell, CalendarDays, KanbanSquare, LayoutDashboard, LogOut, Menu, Moon, Search, Settings, ShieldCheck, Sun, Users, ChevronLeft, ChevronRight, X } from 'lucide-react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useApp } from '../context/AppContext.jsx';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 const nav = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -11,20 +11,39 @@ const nav = [
   { to: '/dashboard/tasks', label: 'Kanban', icon: CalendarDays },
   { to: '/dashboard/calendar', label: 'Calendar', icon: CalendarDays },
   { to: '/dashboard/team', label: 'Team', icon: Users },
-  { to: '/dashboard/notifications', label: 'Notifications', icon: Bell, badge: 3 }, // Example badge count
+  { to: '/dashboard/notifications', label: 'Notifications', icon: Bell },
   { to: '/dashboard/profile', label: 'Profile', icon: Settings },
   { to: '/dashboard/admin', label: 'Admin', icon: ShieldCheck, adminOnly: true }
 ];
 
 export default function Layout() {
+  const location = useLocation();
   const { user, logout } = useAuth();
-  const { dark, toggleDark, search, setSearch } = useApp();
+  const { dark, toggleDark, search, setSearch, unreadNotifications, loadNotifications } = useApp();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const ThemeIcon = dark ? Sun : Moon;
+
+  useEffect(() => {
+    if (!location.hash) return;
+
+    const id = decodeURIComponent(location.hash.slice(1));
+    const timer = window.setTimeout(() => {
+      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 140);
+
+    return () => window.clearTimeout(timer);
+  }, [location.pathname, location.hash]);
+
+  useEffect(() => {
+    loadNotifications().catch(() => {});
+  }, []);
+
+  const notificationBadge = unreadNotifications > 99 ? '99+' : unreadNotifications;
 
   return (
-    <div className="min-h-screen overflow-hidden bg-slate-950 text-slate-50">
-      <div className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(circle_at_10%_10%,rgba(99,102,241,.22),transparent_24%),radial-gradient(circle_at_85%_5%,rgba(20,184,166,.14),transparent_24%),radial-gradient(circle_at_50%_80%,rgba(217,70,239,.12),transparent_26%)]" />
+    <div className="app-shell min-h-screen overflow-hidden bg-slate-950 text-slate-50">
+      <div className="app-backdrop pointer-events-none fixed inset-0 -z-10" />
 
       {/* Desktop Sidebar */}
       <AnimatePresence>
@@ -95,15 +114,19 @@ export default function Layout() {
                         >
                           <Icon size={20} />
                           {/* Notification Badge */}
-                          {item.badge && (
-                            <motion.span
-                              initial={{ scale: 0 }}
-                              animate={{ scale: 1 }}
-                              className="absolute -right-1 -top-1 grid h-4 w-4 place-items-center rounded-full bg-rose-500 text-[10px] font-black text-white"
-                            >
-                              {item.badge}
-                            </motion.span>
-                          )}
+                          <AnimatePresence>
+                            {item.to === '/dashboard/notifications' && unreadNotifications > 0 && (
+                              <motion.span
+                                key={notificationBadge}
+                                initial={{ scale: 0, y: 4 }}
+                                animate={{ scale: 1, y: 0 }}
+                                exit={{ scale: 0, opacity: 0 }}
+                                className="absolute -right-2 -top-2 grid h-5 min-w-5 place-items-center rounded-full notification-badge px-1 text-[10px] font-black text-white shadow-lg shadow-rose-500/30"
+                              >
+                                {notificationBadge}
+                              </motion.span>
+                            )}
+                          </AnimatePresence>
                         </motion.div>
 
                         {/* Label */}
@@ -131,12 +154,15 @@ export default function Layout() {
           {/* User Profile Section */}
           <motion.div
             layout
-            className="absolute bottom-6 left-6 right-6 rounded-2xl border border-white/10 bg-white/[0.08] p-4 shadow-2xl backdrop-blur-xl"
+            className={`absolute bottom-0 left-0 right-0 rounded-t-2xl border border-white/10 bg-white/[0.08] shadow-2xl backdrop-blur-xl transition-all duration-300 ${sidebarCollapsed ? 'p-2' : 'p-4'}`}
           >
-            <div className="flex items-center gap-3">
+            <motion.div 
+              layout
+              className={`flex items-center gap-3 ${sidebarCollapsed ? 'justify-center' : ''}`}
+            >
               <motion.div
                 whileHover={{ scale: 1.1 }}
-                className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-blue-500 via-indigo-500 to-fuchsia-500 text-white shadow-lg shadow-blue-500/20 ring-1 ring-white/20"
+                className="grid h-12 w-12 flex-shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-blue-500 via-indigo-500 to-fuchsia-500 text-white shadow-lg shadow-blue-500/20 ring-1 ring-white/20"
               >
                 {user?.name?.[0]}
               </motion.div>
@@ -154,7 +180,7 @@ export default function Layout() {
                   </motion.div>
                 )}
               </AnimatePresence>
-            </div>
+            </motion.div>
             <AnimatePresence>
               {!sidebarCollapsed && (
                 <motion.button
@@ -163,13 +189,34 @@ export default function Layout() {
                   exit={{ opacity: 0, y: 10 }}
                   transition={{ duration: 0.2, delay: 0.1 }}
                   onClick={logout}
-                  className="btn-secondary mt-4 w-full justify-center py-2 text-xs"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="btn-secondary mt-3 w-full justify-center py-2.5 text-xs font-semibold"
                 >
                   <LogOut size={14} className="mr-2" />
                   Logout
                 </motion.button>
               )}
             </AnimatePresence>
+            {sidebarCollapsed && (
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="mt-2 flex justify-center"
+                title="Logout"
+              >
+                <motion.button
+                  onClick={logout}
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  className="grid h-9 w-9 place-items-center rounded-lg border border-white/10 bg-white/5 text-slate-400 transition-colors hover:bg-rose-500/15 hover:text-rose-400"
+                  aria-label="Logout"
+                >
+                  <LogOut size={16} />
+                </motion.button>
+              </motion.div>
+            )}
           </motion.div>
 
           {/* Collapse Toggle */}
@@ -217,23 +264,39 @@ export default function Layout() {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className="btn-secondary !p-3"
+                className="btn-secondary relative !h-12 !w-12 overflow-hidden !p-0"
                 onClick={toggleDark}
-                aria-label="Toggle theme"
+                aria-label={`Switch to ${dark ? 'light' : 'dark'} mode`}
+                aria-pressed={!dark}
+                title={`Switch to ${dark ? 'light' : 'dark'} mode`}
               >
-                {dark ? <Sun size={18} /> : <Moon size={18} />}
+                <motion.span
+                  key={dark ? 'dark' : 'light'}
+                  initial={{ rotate: -35, scale: 0.5, opacity: 0 }}
+                  animate={{ rotate: 0, scale: 1, opacity: 1 }}
+                  exit={{ rotate: 35, scale: 0.5, opacity: 0 }}
+                  transition={{ duration: 0.18 }}
+                  className="grid place-items-center"
+                >
+                  <ThemeIcon size={18} />
+                </motion.span>
               </motion.button>
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                 <NavLink to="/dashboard/notifications" className="btn-secondary relative !p-3" aria-label="Notifications">
                   <Bell size={18} />
-                  {/* Notification Badge */}
-                  <motion.span
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    className="absolute -right-1 -top-1 grid h-4 w-4 place-items-center rounded-full bg-rose-500 text-[10px] font-black text-white"
-                  >
-                    3
-                  </motion.span>
+                  <AnimatePresence>
+                    {unreadNotifications > 0 && (
+                      <motion.span
+                        key={notificationBadge}
+                        initial={{ scale: 0, y: 4 }}
+                        animate={{ scale: 1, y: 0 }}
+                        exit={{ scale: 0, opacity: 0 }}
+                        className="absolute -right-1.5 -top-1.5 grid h-5 min-w-5 place-items-center rounded-full notification-badge px-1 text-[10px] font-black text-white shadow-lg shadow-rose-500/30"
+                      >
+                        {notificationBadge}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
                 </NavLink>
               </motion.div>
               <div className="hidden items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.08] px-3 py-2 shadow-xl backdrop-blur-xl sm:flex">
@@ -355,15 +418,19 @@ export default function Layout() {
                             >
                               <Icon size={20} />
                               {/* Notification Badge */}
-                              {item.badge && (
-                                <motion.span
-                                  initial={{ scale: 0 }}
-                                  animate={{ scale: 1 }}
-                                  className="absolute -right-1 -top-1 grid h-4 w-4 place-items-center rounded-full bg-rose-500 text-[10px] font-black text-white"
-                                >
-                                  {item.badge}
-                                </motion.span>
-                              )}
+                              <AnimatePresence>
+                                {item.to === '/dashboard/notifications' && unreadNotifications > 0 && (
+                                  <motion.span
+                                    key={notificationBadge}
+                                    initial={{ scale: 0, y: 4 }}
+                                    animate={{ scale: 1, y: 0 }}
+                                    exit={{ scale: 0, opacity: 0 }}
+                                    className="absolute -right-2 -top-2 grid h-5 min-w-5 place-items-center rounded-full notification-badge px-1 text-[10px] font-black text-white shadow-lg shadow-rose-500/30"
+                                  >
+                                    {notificationBadge}
+                                  </motion.span>
+                                )}
+                              </AnimatePresence>
                             </motion.div>
 
                             {/* Label */}
@@ -450,15 +517,19 @@ export default function Layout() {
                     <div className="relative">
                       <Icon size={18} />
                       {/* Notification Badge */}
-                      {item.badge && (
-                        <motion.span
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          className="absolute -right-1 -top-1 grid h-3 w-3 place-items-center rounded-full bg-rose-500 text-[8px] font-black text-white"
-                        >
-                          {item.badge}
-                        </motion.span>
-                      )}
+                      <AnimatePresence>
+                        {item.to === '/dashboard/notifications' && unreadNotifications > 0 && (
+                          <motion.span
+                            key={notificationBadge}
+                            initial={{ scale: 0, y: 4 }}
+                            animate={{ scale: 1, y: 0 }}
+                            exit={{ scale: 0, opacity: 0 }}
+                            className="absolute -right-2 -top-2 grid h-4 min-w-4 place-items-center rounded-full notification-badge px-1 text-[8px] font-black text-white shadow-lg shadow-rose-500/30"
+                          >
+                            {notificationBadge}
+                          </motion.span>
+                        )}
+                      </AnimatePresence>
                     </div>
 
                     {/* Label */}

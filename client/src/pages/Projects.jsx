@@ -14,6 +14,7 @@ export default function Projects() {
   const [projects, setProjects] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showCreateForm, setShowCreateForm] = useState(false);
   const [form, setForm] = useState({ name: '', description: '', priority: 'Medium', deadline: '', members: [] });
 
   const load = async () => {
@@ -39,6 +40,7 @@ export default function Projects() {
     await api('/projects', { method: 'POST', body: JSON.stringify(form) });
     toast.success('Project created.');
     setForm({ name: '', description: '', priority: 'Medium', deadline: '', members: [] });
+    setShowCreateForm(false);
     load();
   };
 
@@ -57,10 +59,15 @@ export default function Projects() {
           <p className="mt-2 text-sm font-semibold leading-6 text-slate-400">Plan initiatives, assign members, and track delivery progress.</p>
         </div>
         {isAdmin && (
-          <motion.a whileHover={{ scale: 1.03, y: -2 }} whileTap={{ scale: 0.97 }} href="#create-project" className="btn-secondary w-full sm:w-auto">
+          <motion.button
+            whileHover={{ scale: 1.03, y: -2 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={() => setShowCreateForm(!showCreateForm)}
+            className="btn-secondary w-full sm:w-auto"
+          >
             <Plus size={18} />
             New project
-          </motion.a>
+          </motion.button>
         )}
       </div>
 
@@ -88,7 +95,7 @@ export default function Projects() {
           {isAdmin && <SkeletonStack rows={5} className="card h-fit p-5" />}
         </div>
       ) : (
-        <section className="grid gap-6 xl:grid-cols-[1fr_380px]">
+        <section className={`grid gap-6 ${showCreateForm && isAdmin ? 'xl:grid-cols-[1fr_380px]' : ''}`}>
           <div className="grid gap-4 md:grid-cols-2">
             {projects.length === 0 ? (
               <div className="col-span-full">
@@ -135,15 +142,32 @@ export default function Projects() {
             )}
           </div>
 
-          {isAdmin && (
+          {isAdmin && showCreateForm && (
             <motion.form
               id="create-project"
               onSubmit={create}
-              initial={{ opacity: 0, x: 16 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="card sticky top-24 h-fit p-5 sm:p-6"
+              initial={{ opacity: 0, x: 20, scale: 0.95 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              exit={{ opacity: 0, x: 20, scale: 0.95 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+              className="card sticky top-24 h-fit overflow-hidden p-5 sm:p-6"
             >
-              <h2 className="mb-4 flex items-center gap-2 text-xl font-black"><Plus className="text-blue-600" />Create project</h2>
+              <div className="mb-4 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Plus className="text-blue-600" size={20} />
+                  <h2 className="text-lg font-black sm:text-xl text-white">Create project</h2>
+                </div>
+                <motion.button
+                  type="button"
+                  onClick={() => setShowCreateForm(false)}
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-white/5 text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
+                  aria-label="Close form"
+                >
+                  <Plus size={16} className="rotate-45" />
+                </motion.button>
+              </div>
               <div className="grid gap-4">
                 <input className="input" placeholder="Project name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
                 <textarea className="input min-h-28" placeholder="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />

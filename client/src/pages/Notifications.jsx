@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Bell, CheckCheck, MessageSquare, Sparkles, Timer } from 'lucide-react';
-import { api } from '../utils/api.js';
 import Skeleton, { EmptyState, SkeletonStack } from '../components/Skeleton.jsx';
+import { useApp } from '../context/AppContext.jsx';
 
 const iconMap = {
   assignment: Sparkles,
@@ -14,14 +14,15 @@ const iconMap = {
 const filters = ['All', 'Unread', 'System'];
 
 export default function Notifications() {
-  const [items, setItems] = useState(null);
+  const { notifications, loadNotifications, markNotificationsRead } = useApp();
   const [filter, setFilter] = useState('All');
 
   useEffect(() => {
-    api('/notifications').then((data) => setItems(data.items || data.notifications || []));
+    loadNotifications().catch(() => {});
   }, []);
 
-  const markAllRead = () => setItems((current) => current.map((item) => ({ ...item, read: true })));
+  const items = notifications;
+  const markAllRead = () => markNotificationsRead();
 
   const visibleItems = useMemo(() => {
     if (!items) return [];
@@ -63,7 +64,7 @@ export default function Notifications() {
               A clean activity timeline for assignments, comments, deadlines, and system updates.
             </p>
           </div>
-          <button onClick={markAllRead} className="btn-secondary w-full sm:w-auto">
+          <button onClick={markAllRead} disabled={!unreadCount} className="btn-secondary w-full disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto">
             <CheckCheck size={18} />
             Mark all read
           </button>

@@ -38,8 +38,8 @@ export default function Auth({ mode = 'login' }) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(99,102,241,.38),transparent_28%),radial-gradient(circle_at_80%_0%,rgba(20,184,166,.24),transparent_25%),radial-gradient(circle_at_65%_88%,rgba(217,70,239,.18),transparent_28%),linear-gradient(135deg,rgba(255,255,255,.07)_1px,transparent_1px)] bg-[length:auto,auto,auto,32px_32px]" />
+    <div className="app-shell min-h-screen bg-slate-950 text-white">
+      <div className="app-backdrop absolute inset-0" />
       <main className="relative mx-auto grid min-h-screen w-full max-w-7xl items-center gap-10 px-5 py-10 lg:grid-cols-[1.25fr_480px]">
         <motion.section initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
           <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-slate-100 shadow-xl shadow-black/10 backdrop-blur-xl">

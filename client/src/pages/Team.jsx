@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { BriefcaseBusiness, Mail, Shield, Sparkles, UserPlus, UserRoundCog, Users } from 'lucide-react';
+import { BriefcaseBusiness, Mail, Plus, Shield, Sparkles, UserPlus, UserRoundCog, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useApp } from '../context/AppContext.jsx';
@@ -17,6 +17,7 @@ export default function Team() {
   const { search } = useApp();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showInviteForm, setShowInviteForm] = useState(false);
   const [invite, setInvite] = useState({ name: '', email: '', title: 'Team Member', department: 'Product' });
 
   const load = async () => {
@@ -38,6 +39,7 @@ export default function Team() {
     await api('/auth/signup', { method: 'POST', body: JSON.stringify(invite) });
     toast.success('Invitation sent. Member created.');
     setInvite({ name: '', email: '', title: 'Team Member', department: 'Product' });
+    setShowInviteForm(false);
     load();
   };
 
@@ -74,7 +76,7 @@ export default function Team() {
             <motion.button
               whileHover={{ scale: 1.03, y: -2 }}
               whileTap={{ scale: 0.97 }}
-              onClick={() => document.getElementById('invite-member')?.scrollIntoView({ behavior: 'smooth' })}
+              onClick={() => setShowInviteForm(!showInviteForm)}
               className="btn-primary w-full sm:w-auto"
             >
               <UserPlus size={18} />
@@ -136,7 +138,7 @@ export default function Team() {
             ))}
           </motion.section>
 
-          <section className={`grid gap-6 ${isAdmin ? 'xl:grid-cols-[1fr_380px]' : ''}`}>
+          <section className={`grid gap-6 ${showInviteForm && isAdmin ? 'xl:grid-cols-[1fr_380px]' : ''}`}>
             <motion.div variants={cardVariants} className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
               {users.length === 0 ? (
                 <div className="col-span-full">
@@ -197,21 +199,36 @@ export default function Team() {
               )}
             </motion.div>
 
-            {isAdmin && (
+            {isAdmin && showInviteForm && (
               <motion.form
                 id="invite-member"
                 onSubmit={inviteMember}
-                variants={cardVariants}
+                initial={{ opacity: 0, x: 20, scale: 0.95 }}
+                animate={{ opacity: 1, x: 0, scale: 1 }}
+                exit={{ opacity: 0, x: 20, scale: 0.95 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                 className="card sticky top-24 h-fit overflow-hidden p-5 sm:p-6"
               >
-                <div className="mb-5 flex items-center gap-3">
-                  <div className="grid h-11 w-11 place-items-center rounded-2xl bg-blue-500/15 text-blue-300">
-                    <UserPlus size={20} />
+                <div className="mb-5 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="grid h-11 w-11 place-items-center rounded-2xl bg-blue-500/15 text-blue-300">
+                      <UserPlus size={20} />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-black text-white sm:text-xl">Invite member</h2>
+                      <p className="text-sm font-semibold text-slate-500">Create a collaborator profile.</p>
+                    </div>
                   </div>
-                  <div>
-                    <h2 className="text-xl font-black text-white">Invite member</h2>
-                    <p className="text-sm font-semibold text-slate-500">Create a collaborator profile.</p>
-                  </div>
+                  <motion.button
+                    type="button"
+                    onClick={() => setShowInviteForm(false)}
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-white/5 text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
+                    aria-label="Close form"
+                  >
+                    <Plus size={16} className="rotate-45" />
+                  </motion.button>
                 </div>
                 <div className="grid gap-3 sm:gap-4">
                   <input className="input" placeholder="Name" value={invite.name} onChange={(e) => setInvite({ ...invite, name: e.target.value })} required />

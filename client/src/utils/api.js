@@ -183,6 +183,12 @@ async function mockApi(path, options = {}) {
   }
   if (path.startsWith('/admin/backup')) return { exportedAt: new Date().toISOString(), users: db.users, projects: db.projects, tasks: db.tasks, activities: db.activities, notifications: db.notifications };
   if (path.startsWith('/users')) return filtered(db.users.map(({ password, ...user }) => user), path);
+  if (path === '/notifications/read' && method === 'PATCH') {
+    const ids = body.ids || [];
+    db.notifications = db.notifications.map((item) => (ids.includes(item._id) ? { ...item, read: true } : item));
+    saveDemo(db);
+    return { message: 'Notifications updated.' };
+  }
   if (path.startsWith('/notifications')) return { items: db.notifications };
   if (path.startsWith('/projects') && method === 'GET') return filtered(db.projects, path);
   if (path === '/projects' && method === 'POST') {

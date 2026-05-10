@@ -6,6 +6,7 @@ import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer,
 import AdminTable from '../components/AdminTable.jsx';
 import Badge from '../components/Badge.jsx';
 import { api } from '../utils/api.js';
+import { useApp } from '../context/AppContext.jsx';
 
 const tabs = ['Overview', 'Users', 'Projects', 'Tasks', 'Audit Logs', 'Announcements'];
 
@@ -183,6 +184,7 @@ export default function Admin() {
 }
 
 function AdminOverview({ overview }) {
+  const { dark } = useApp();
   const cards = [
     ['Total users', overview.cards.totalUsers, Users],
     ['Active projects', overview.cards.activeProjects, SlidersHorizontal],
@@ -190,6 +192,21 @@ function AdminOverview({ overview }) {
     ['Overdue tasks', overview.cards.overdueTasks, ShieldAlert],
     ['Blocked users', overview.cards.blockedUsers, LockKeyhole]
   ];
+  const chartTheme = {
+    axis: dark ? '#94a3b8' : '#64748b',
+    grid: dark ? 'rgba(148,163,184,.16)' : 'rgba(100,116,139,.18)',
+    tooltipBg: dark ? '#020617' : 'rgba(255,255,255,.96)',
+    tooltipText: dark ? '#ffffff' : '#0f172a',
+    tooltipBorder: dark ? 'rgba(148,163,184,0.18)' : 'rgba(148,163,184,0.32)',
+    tooltipShadow: dark ? '0 20px 60px rgba(0,0,0,0.3)' : '0 18px 48px rgba(15,23,42,0.16)'
+  };
+  const tooltipStyle = {
+    backgroundColor: chartTheme.tooltipBg,
+    borderRadius: '14px',
+    border: `1px solid ${chartTheme.tooltipBorder}`,
+    boxShadow: chartTheme.tooltipShadow,
+    color: chartTheme.tooltipText
+  };
 
   return (
     <div className="grid gap-6">
@@ -208,10 +225,10 @@ function AdminOverview({ overview }) {
           <div className="h-80 min-w-0">
             <ResponsiveContainer>
               <BarChart data={overview.productivity}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(148,163,184,.16)" />
-                <XAxis dataKey="day" stroke="#94a3b8" />
-                <YAxis allowDecimals={false} stroke="#94a3b8" />
-                <Tooltip />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chartTheme.grid} />
+                <XAxis dataKey="day" stroke={chartTheme.axis} />
+                <YAxis allowDecimals={false} stroke={chartTheme.axis} />
+                <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: chartTheme.tooltipText }} />
                 <Bar dataKey="completed" fill="#22d3ee" radius={[8, 8, 0, 0]} />
                 <Bar dataKey="overdue" fill="#fb7185" radius={[8, 8, 0, 0]} />
               </BarChart>
@@ -226,7 +243,7 @@ function AdminOverview({ overview }) {
                 <Pie data={overview.taskStatus} dataKey="value" nameKey="name" innerRadius={60} outerRadius={102} paddingAngle={6}>
                   {['#64748b', '#22d3ee', '#a78bfa', '#34d399'].map((color) => <Cell key={color} fill={color} />)}
                 </Pie>
-                <Tooltip />
+                <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: chartTheme.tooltipText }} />
               </PieChart>
             </ResponsiveContainer>
           </div>
