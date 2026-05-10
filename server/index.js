@@ -7,8 +7,14 @@ import morgan from 'morgan';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Server } from 'socket.io';
+
 import { connectDB } from './config/db.js';
-import { errorMiddleware, notFoundMiddleware } from './middleware/errorMiddleware.js';
+
+import {
+  errorMiddleware,
+  notFoundMiddleware
+} from './middleware/errorMiddleware.js';
+
 import authRoutes from './routes/authRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
@@ -19,13 +25,16 @@ import taskRoutes from './routes/taskRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 
 const __filename = fileURLToPath(import.meta.url);
+
 const __dirname = path.dirname(__filename);
 
 const app = express();
+
 const server = http.createServer(app);
 
 const allowedOrigin =
-  process.env.CLIENT_URL || 'http://localhost:5173';
+  process.env.CLIENT_URL ||
+  'http://localhost:5173';
 
 const devOrigin =
   process.env.NODE_ENV !== 'production';
@@ -107,6 +116,10 @@ app.use((req, res, next) => {
   next();
 });
 
+/* =========================================
+   API ROUTES
+========================================= */
+
 app.get('/api/health', (req, res) =>
   res.json({
     ok: true,
@@ -123,17 +136,36 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/chat', chatRoutes);
 
-/* ONLY UPDATED PART */
-app.use(express.static(path.resolve(__dirname, '../dist')));
+/* =========================================
+   SERVE FRONTEND
+========================================= */
 
-app.get('/{*any}', (req, res) =>
+app.use(
+  express.static(
+    path.resolve(__dirname, '../dist')
+  )
+);
+
+/* =========================================
+   REACT ROUTER FIX FOR EXPRESS 5
+========================================= */
+
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api')) {
+    return next();
+  }
+
   res.sendFile(
     path.resolve(
       __dirname,
       '../dist/index.html'
     )
-  )
-);
+  );
+});
+
+/* =========================================
+   SOCKET.IO
+========================================= */
 
 io.on('connection', (socket) => {
   socket.on('join:user', (userId) =>
@@ -145,8 +177,17 @@ io.on('connection', (socket) => {
   );
 });
 
+/* =========================================
+   ERROR HANDLERS
+========================================= */
+
 app.use(notFoundMiddleware);
+
 app.use(errorMiddleware);
+
+/* =========================================
+   START SERVER
+========================================= */
 
 const PORT = process.env.PORT || 3000;
 
